@@ -144,6 +144,9 @@ debrid_link_supported_sites = [
 
 
 def direct_link_generator(link):
+    auth = None
+    if isinstance(link, tuple):
+        link, auth = link
     """direct links generator"""
     domain = urlparse(link).hostname
     if not domain:
@@ -174,6 +177,8 @@ def direct_link_generator(link):
         return onedrive(link)
     elif "pixeldrain.com" in domain:
         return pixeldrain(link)
+    elif "bunkr" in domain:
+        return bunkr(link)
     elif "racaty" in domain:
         return racaty(link)
     elif "1fichier.com" in domain:
@@ -185,7 +190,8 @@ def direct_link_generator(link):
     elif "upload.ee" in domain:
         return uploadee(link)
     elif "gofile.io" in domain:
-        return gofile(link)
+        return gofile(link, auth)
+        return gofile(link, None)
     elif "send.cm" in domain:
         return send_cm(link)
     elif "tmpsend.com" in domain:
@@ -694,12 +700,154 @@ def onedrive(link):
 
 def pixeldrain(url):
     try:
-        url = url.rstrip("/")
-        code = url.split("/")[-1].split("?", 1)[0]
-        response = get("https://pd.cybar.xyz/", allow_redirects=True)
-        return response.url + code
-    except Exception as e:
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/")
+        parts = [part for part in path.split("/") if part]
+        if not parts:
+            raise DirectDownloadLinkException("ERROR: Direct link not found")
+
+        resource = parts[-2] if len(parts) >= 2 else ""
+        code = parts[-1]
+
+        if parts[0] == "api" and len(parts) >= 3:
+            api_resource = parts[1]
+            if api_resource == "file":
+                return f"https://pixeldrain.com/api/file/{code}?download"
+            if api_resource == "list":
+                return f"https://pixeldrain.com/api/list/{code}/zip?download"
+
+        if resource in {"u", "file"}:
+            return f"https://pixeldrain.com/api/file/{code}?download"
+        if resource in {"l", "list"}:
+            return f"https://pixeldrain.com/api/list/{code}/zip?download"
         raise DirectDownloadLinkException("ERROR: Direct link not found")
+    except DirectDownloadLinkException:
+        raise
+    except Exception as e:
+        raise DirectDownloadLinkException("ERROR: Direct link not found") from e
+
+def bunkr(url):
+    root_dl = "https://get.bunkrr.su"
+    endpoint = "https://apidl.bunkr.ru/api/_001_v2"
+
+    def _extract_between(text, start, end):
+        start_index = text.find(start)
+        if start_index == -1:
+            return ""
+        start_index += len(start)
+        end_index = text.find(end, start_index)
+        if end_index == -1:
+            return ""
+        return text[start_index:end_index]
+
+    def _decrypt_xor(data, key):
+        decoded = b64decode(data)
+        decrypted = bytes(
+            byte ^ key[index % len(key)] for index, byte in enumerate(decoded)
+        )
+        return decrypted.decode("utf-8")
+
+    def _extract_data_id(page):
+        if match_id := search(r'data-file-id="([^"]+)"', page):
+            return match_id.group(1)
+        return ""
+
+    def _json_unescape(value):
+        if not value:
+            return ""
+        try:
+            return loads(f'"{value}"')
+        except Exception:
+            return value.replace("\\'", "'")
+
+    def _fetch_file_info(session, data_id):
+        referer = f"{root_dl}/file/{data_id}"
+        headers = {"Referer": referer, "Origin": root_dl}
+        try:
+            response = session.post(endpoint, headers=headers, json={"id": data_id})
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+        if data.get("encrypted"):
+            key = f"SECRET_KEY_{data['timestamp'] // 3600}".encode()
+            file_url = _decrypt_xor(data["url"], key)
+        else:
+            file_url = data["url"]
+        return file_url, referer
+
+    try:
+        session = create_scraper()
+        session.headers.update({"User-Agent": user_agent})
+        parsed = urlparse(url)
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+    if "/a/" in parsed.path:
+        page_url = url if "advanced=1" in url else f"{url}?advanced=1"
+        try:
+            page = session.get(page_url).text
+        except Exception as e:
+            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+        title_match = search(r'property="og:title" content="([^"]+)"', page)
+        title = unquote(title_match.group(1)) if title_match else "bunkr_album"
+        items_match = search(
+            r"window\\.albumFiles\\s*=\\s*(\\[.*?\\])", page, flags=DOTALL
+        )
+        if not items_match:
+            items_raw = _extract_between(page, "window.albumFiles = [", "</script>")
+            if not items_raw:
+                raise DirectDownloadLinkException("ERROR: Album items not found")
+            items_raw = f"[{items_raw}"
+        else:
+            items_raw = items_match.group(1)
+        item_blocks = list(findall(r"\\{.*?\\}", items_raw, flags=DOTALL))
+        if not item_blocks:
+            item_blocks = items_raw.split("\n},\n")
+        details = {
+            "contents": [],
+            "title": title,
+            "total_size": 0,
+            "header": f"Referer: {root_dl}/",
+        }
+        for item in item_blocks:
+            data_id_match = search(r"id:\\s*([0-9]+)", item)
+            if not data_id_match:
+                continue
+            data_id = data_id_match.group(1).strip()
+            file_url, _referer = _fetch_file_info(session, data_id)
+            name_match = search(r"original:\\s*'([^']*)'", item) or search(
+                r'original:\\s*"([^"]*)"', item
+            )
+            filename = _json_unescape(name_match.group(1)) if name_match else ""
+            if not filename:
+                filename = unquote(urlparse(file_url).path.rsplit("/", 1)[-1])
+            size_match = search(r"size:\\s*([0-9]+)", item)
+            if size_match:
+                details["total_size"] += int(size_match.group(1))
+            details["contents"].append(
+                {"path": "", "filename": filename, "url": file_url}
+            )
+        if not details["contents"]:
+            raise DirectDownloadLinkException("ERROR: Album files not found")
+        if len(details["contents"]) == 1:
+            return details["contents"][0]["url"], details["header"]
+        return details
+
+    try:
+        page = session.get(url).text
+    except Exception as e:
+        raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+    data_id = _extract_data_id(page)
+    if not data_id:
+        if "/file/" in parsed.path:
+            data_id = parsed.path.rsplit("/", 1)[-1]
+        else:
+            raise DirectDownloadLinkException("ERROR: File id not found")
+    file_url, referer = _fetch_file_info(session, data_id)
+    return file_url, f"Referer: {referer}"
 
 
 def streamtape(url):
@@ -1175,66 +1323,46 @@ def linkBox(url: str):
     return details
 
 
-def gofile(url):
+def gofile(url, auth):
     try:
-        if "::" in url:
-            _password = url.split("::")[-1]
-            _password = sha256(_password.encode("utf-8")).hexdigest()
-            url = url.split("::")[-2]
-        else:
-            _password = ""
+        _id = url.split('/')[-1]
+        worker_base_url = "https://gofile.kpsbots.workers.dev/"
+        gofile_url = f"{worker_base_url}{_id}"
+        return gofile_url
+    except Exception as e:
+        raise e
+
+    '''    
+    try:
+        _password = sha256(auth[1].encode("utf-8")).hexdigest() if auth else ""
         _id = url.split("/")[-1]
     except Exception as e:
         raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}")
 
     def __get_token(session):
-        global gofile_token_cache
         headers = {
             "User-Agent": user_agent,
             "Accept-Encoding": "gzip, deflate, br",
             "Accept": "*/*",
             "Connection": "keep-alive",
         }
-        # Try to use cached token first
-        if gofile_token_cache:
-            # Validate cached token by making a test request
-            try:
-                test_headers = {
-                    "User-Agent": user_agent,
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Accept": "*/*",
-                    "Connection": "keep-alive",
-                    "Authorization": "Bearer" + " " + gofile_token_cache,
-                }
-                test_res = session.get(
-                    "https://api.gofile.io/accounts/website",
-                    headers=test_headers,
-                ).json()
-                if test_res.get("status") == "ok":
-                    return gofile_token_cache
-            except Exception:
-                pass  # Token invalid, will create new one
-        
-        # Create new account if no valid cached token
         __url = "https://api.gofile.io/accounts"
         try:
             __res = session.post(__url, headers=headers).json()
             if __res["status"] != "ok":
                 raise DirectDownloadLinkException("ERROR: Failed to get token.")
-            gofile_token_cache = __res["data"]["token"]
-            return gofile_token_cache
+            return __res["data"]["token"]
         except Exception as e:
             raise e
 
-    def __fetch_links(session, _id, folderPath="", retry=True):
-        _url = f"https://api.gofile.io/contents/{_id}?cache=true"
+    def __fetch_links(session, _id, folderPath=""):
+        _url = f"https://api.gofile.io/contents/{_id}?wt=4fd6sg89d7s6&cache=true"
         headers = {
             "User-Agent": user_agent,
             "Accept-Encoding": "gzip, deflate, br",
             "Accept": "*/*",
             "Connection": "keep-alive",
             "Authorization": "Bearer" + " " + token,
-            "X-Website-Token": "4fd6sg89d7s6",
         }
         if _password:
             _url += f"&password={_password}"
@@ -1242,26 +1370,6 @@ def gofile(url):
             _json = session.get(_url, headers=headers).json()
         except Exception as e:
             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}")
-        
-        # Handle token/auth errors - clear cache and retry once
-        if _json.get("status") in ["error-unauth", "error-forbidden", "error-tokenInvalid"]:
-            global gofile_token_cache
-            gofile_token_cache = None  # Clear invalid token
-            if retry:
-                # Get new token and retry
-                try:
-                    new_token = __get_token(session)
-                    # Update headers with new token
-                    headers["Authorization"] = "Bearer" + " " + new_token
-                    _json = session.get(_url, headers=headers).json()
-                    # Update details header with new token for return value
-                    nonlocal details
-                    details["header"] = f"Cookie: accountToken={new_token}"
-                except Exception:
-                    raise DirectDownloadLinkException("ERROR: GoFile token revoked and failed to create new token.")
-            else:
-                raise DirectDownloadLinkException("ERROR: GoFile token revoked.")
-        
         if _json["status"] in "error-passwordRequired":
             raise DirectDownloadLinkException(
                 f"ERROR:\n{PASSWORD_ERROR_MESSAGE.format(url)}"
@@ -1286,15 +1394,15 @@ def gofile(url):
                 if not content["public"]:
                     continue
                 if not folderPath:
-                    newFolderPath = ospath.join(details["title"], content["name"])
+                    newFolderPath = path.join(details["title"], content["name"])
                 else:
-                    newFolderPath = ospath.join(folderPath, content["name"])
-                __fetch_links(session, content["id"], newFolderPath, retry=False)
+                    newFolderPath = path.join(folderPath, content["name"])
+                __fetch_links(session, content["id"], newFolderPath)
             else:
                 if not folderPath:
                     folderPath = details["title"]
                 item = {
-                    "path": ospath.join(folderPath),
+                    "path": path.join(folderPath),
                     "filename": content["name"],
                     "url": content["link"],
                 }
@@ -1320,6 +1428,7 @@ def gofile(url):
     if len(details["contents"]) == 1:
         return (details["contents"][0]["url"], details["header"])
     return details
+    '''
 
 
 def mediafireFolder(url):
