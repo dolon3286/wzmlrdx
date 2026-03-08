@@ -3,20 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WZML-X</title>
+    <title>RDX-CLOUD | Premium</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Exo:wght@300;400;600;700&display=swap');
 
-        body {
-            font-family: 'Exo', sans-serif !important;
-        }
-        
+        /* --- 1. LUXURY GOLD THEME SETTINGS --- */
         :root {
-            --bg-color: #0a0f1c;
-            --primary-blue: #00b7ff;
-            --primary-yellow: #ffd700;
-            --primary-orange: #ff4500;
+            --bg-color: #050505;        /* Deepest Black */
+            --glass-bg: rgba(0, 0, 0, 0.7); /* Dark Glass */
+            --primary-gold: #ffd700;    /* Pure Gold */
+            --accent-gold: #d4af37;     /* Metallic Gold */
+            --pale-gold: #fffacd;       /* Pale Gold */
             --text-color: #ffffff;
         }
 
@@ -27,8 +25,8 @@
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #000000;
+            font-family: 'Exo', sans-serif !important;
+            background-color: var(--bg-color);
             color: var(--text-color);
             line-height: 1.6;
             min-height: 100vh;
@@ -45,165 +43,171 @@
             overflow: hidden;
         }
 
+        /* --- 2. BACKGROUND IMAGE --- */
         .background-animation {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: 
-                radial-gradient(circle at 20% 20%, var(--primary-blue) 0%, transparent 40%),
-                radial-gradient(circle at 80% 20%, var(--primary-yellow) 0%, transparent 40%),
-                radial-gradient(circle at 50% 80%, var(--primary-orange) 0%, transparent 40%);
-            opacity: 0.15;
-            filter: blur(70px);
+            /* Replace this URL with your own image if you want */
+            background: url('https://i.ibb.co/BHfFwVfk/japan-background-digital-art.jpg') no-repeat center center/cover;
+            
+            /* This dims the background so text pops */
+            filter: brightness(0.4); 
             z-index: 0;
         }
 
+        /* --- 3. PREMIUM GLASS CARD --- */
         .content {
             position: relative;
             z-index: 1;
             text-align: center;
-            background: rgba(10, 15, 28, 0.7);
-            padding: 3rem;
-            border-radius: 15px;
+            
+            /* The Glass Effect */
+            background: var(--glass-bg);
             backdrop-filter: blur(20px);
-            box-shadow: 
-                0 0 30px rgba(0, 183, 255, 0.2),
-                inset 0 0 30px rgba(0, 183, 255, 0.1);
-            border: 1px solid rgba(0, 183, 255, 0.1);
+            -webkit-backdrop-filter: blur(20px);
+            
+            padding: 3.5rem;
+            border-radius: 20px;
+            
+            /* Gold Glowing Border */
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            
             animation: contentAppear 1s ease-out;
+            max-width: 500px;
+            width: 90%;
         }
 
         @keyframes contentAppear {
             from { 
                 opacity: 0; 
-                transform: translateY(20px);
-                backdrop-filter: blur(0px);
+                transform: translateY(30px);
             }
             to { 
                 opacity: 1; 
                 transform: translateY(0);
-                backdrop-filter: blur(20px);
             }
         }
 
         .logo {
-            width: 150px;
-            height: 150px;
+            width: 140px;
+            height: 140px;
             border-radius: 50%;
             object-fit: cover;
             margin-bottom: 1.5rem;
-            border: 2px solid var(--primary-blue);
-            box-shadow: 0 0 20px rgba(0, 183, 255, 0.3);
-            animation: logoSpin 10s linear infinite;
+            
+            /* Gold Border & Glow */
+            border: 2px solid var(--primary-gold);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.2);
+            
+            animation: logoSpin 20s linear infinite;
         }
 
         @keyframes logoSpin {
-            from { transform: rotateY(0deg); }
-            to { transform: rotateY(360deg); }
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         h1 {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 5px;
-            background: linear-gradient(45deg, var(--primary-blue), var(--primary-yellow), var(--primary-orange));
+            letter-spacing: 4px;
+            
+            /* Gold Text Gradient */
+            background: linear-gradient(45deg, var(--primary-gold), var(--pale-gold), var(--accent-gold));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            text-shadow: 0 0 20px rgba(0, 183, 255, 0.3);
+            
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
         }
 
         .subtitle {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-            color: var(--text-color);
-            opacity: 0.9;
+            font-size: 1.1rem;
+            margin-bottom: 2.5rem;
+            color: #cccccc;
+            font-weight: 300;
         }
 
         .version {
-            font-size: 1rem;
-            color: var(--primary-blue);
+            font-size: 0.9rem;
+            color: var(--primary-gold);
             margin-bottom: 1rem;
             font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
         .links {
             display: flex;
-            justify-content: center;
+            flex-direction: column; /* Stack buttons for a cleaner luxury look */
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            width: 100%;
         }
 
+        /* --- 4. LUXURY BUTTONS --- */
         .button {
-            display: inline-block;
-            padding: 0.8rem 1.5rem;
-            background: linear-gradient(45deg, var(--bg-color), #FF4D00, #FFDD00, #FFDD00, var(--primary-blue), var(--primary-blue), #00FFFF, white);
-            color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            
+            /* Dark button with Gold Border */
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            color: var(--primary-gold);
+            
             text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
+            border-radius: 8px;
+            font-weight: 600;
+            letter-spacing: 1px;
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
 
-        .button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: all 0.5s ease;
+        .button i {
+            margin-right: 10px;
         }
 
-        .button:hover::before {
-            left: 100%;
-        }
-
+        /* Hover Effect: Turns Solid Gold */
         .button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0, 183, 255, 0.3);
+            background: var(--primary-gold);
+            color: #000000; /* Text turns black for contrast */
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+            transform: translateY(-2px);
+            border-color: var(--primary-gold);
+        }
+
+        .tagline {
+            font-size: 0.9rem;
+            color: var(--accent-gold);
+            margin-top: 1.5rem;
+            font-weight: 400;
+            letter-spacing: 2px;
+            opacity: 0.8;
         }
 
         .copyright {
             margin-top: 2rem;
-            font-size: 0.9rem;
-            opacity: 0.7;
+            font-size: 0.8rem;
+            opacity: 0.5;
             color: var(--text-color);
         }
 
-        .tagline {
-            font-size: 1rem;
-            color: var(--primary-yellow);
-            margin-top: 1.5rem;
-            font-weight: 500;
-            letter-spacing: 1px;
-        }
-
+        /* Mobile Responsiveness */
         @media (max-width: 768px) {
             .content {
                 padding: 2rem;
+                width: 95%;
             }
-
             h1 {
-                font-size: 2.5rem;
-            }
-
-            .subtitle {
-                font-size: 1rem;
-            }
-
-            .links {
-                flex-direction: column;
-            }
-
-            .button {
-                width: 100%;
+                font-size: 2.2rem;
             }
         }
     </style>
@@ -211,29 +215,28 @@
 <body>
     <div class="container">
         <div class="background-animation"></div>
+
         <div class="content">
-            <img class="logo" src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/IMG_20250213_112455_659.jpg-n4TftLXY3h5mHsdJIZQPSWUTX58iLY.jpeg" alt="WZMLX Logo">
-            <div class="version">V3.0.0</div>
-            <h1><b>WZML-X</b></h1>
-            <p class="subtitle">Experience the next generation of workflow automation</p>
+            <img class="logo" src="https://i.ibb.co/1tCNXzHJ/jennummi-20251007-0002.jpg" alt="RDX Logo">
+            
+            <div class="version">WELCOME TO</div>
+            <h1><b>RDX-CLOUD</b></h1>
+            <p class="subtitle">Experience the next generation of premium service</p>
 
             <div class="links">
-              <a href="https://t.me/WZML_X" class="button">
-                <i class="fab fa-telegram-plane"></i> Telegram Channel
+              <a href="https://t.me/rdxmirror" class="button">
+                <i class="fab fa-telegram-plane"></i> Join Channel
               </a>
-              <a href="https://t.me/WZML_Support" class="button">
+              <a href="https://t.me/+LVy3V_0ON_NmNWY9" class="button">
                 <i class="fas fa-comments"></i> Support Group
               </a>
-              <a href="https://github.com/SilentDemonSD/WZML-X" class="button">
-                <i class="fab fa-github"></i> GitHub Repository
-              </a>
-              <a href="https://wzmlx.mysterysd.in/docs" class="button">
-                <i class="fas fa-book"></i> Documentation
+              <a href="https://t.me/Rdx_sss" class="button">
+                <i class="fab fa-github"></i> Contact Admin
               </a>
             </div>
 
-            <div class="tagline">SIMPLIFY YOUR WORKFLOW, MAXIMIZE YOUR IMPACT!</div>
-            <p class="copyright">&copy; 2025 WZML-X. All rights reserved.</p>
+            <div class="tagline">MAKE THE RIGHT CHOICE</div>
+            <p class="copyright">&copy; 2026 RDX-CLOUD. All rights reserved.</p>
         </div>
     </div>
 </body>
