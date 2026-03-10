@@ -854,29 +854,41 @@ def filester(url):
     """filester.me direct link generator"""
     with create_scraper() as session:
         try:
-            file_id = url.split("/")[-1]
-            # Perform the standard XFS POST request to bypass the first page
-            html = HTML(
-                session.post(
-                    url,
-                    data={"op": "download2", "id": file_id},
-                ).text
-            )
+            # Emulate a standard browser request
+            session.headers.update({"User-Agent": user_agent})
+            res = session.get(url)
+            html = HTML(res.text)
         except Exception as e:
             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
             
-    # Extract the generated download link
-    if direct_link := html.xpath("//a[contains(@class,'btn btn-dow')]/@href"):
+    # 1. Bunkr/Cyberdrop style <source src="...">
+    if direct_link := html.xpath("//source/@src"):
         return direct_link[0]
-    elif direct_link := html.xpath("//a[@id='direct_link']/@href"):
+        
+    # 2. OpenGraph Meta tags (often used by modern hosts for embeds)
+    if direct_link := html.xpath("//meta[@property='og:video' or @property='og:video:url']/@content"):
         return direct_link[0]
-    elif direct_link := html.xpath("//a[contains(@class,'btn')]/@href"):
-        # Fallback to catch generic download buttons if the class names change
+
+    # 3. Standard download buttons
+    if direct_link := html.xpath("//a[contains(@class, 'button') or contains(@class, 'btn') or contains(@class, 'download')]/@href"):
         for link in direct_link:
-            if "filester.me" in link or file_id in link:
+            if "http" in link and not link.endswith(('/', '#')):
                 return link
                 
-    raise DirectDownloadLinkException("ERROR: Direct link not found for filester.me")
+    # 4. JavaScript variables (e.g., const source = "...")
+    from re import search
+    if match := search(r'(?:src|source|url)["\']?\s*[:=]\s*["\'](https?://[^"\']+\.(?:mp4|mkv|zip|rar|7z))["\']', res.text):
+        return match.group(1)
+
+    # --- DEBUGGING FALLBACK ---
+    # If all parsers fail, write the raw HTML to a file so we can analyze it.
+    try:
+        with open("filester_debug.txt", "w", encoding="utf-8") as f:
+            f.write(res.text)
+    except Exception:
+        pass
+        
+    raise DirectDownloadLinkException("ERROR: Direct link not found. The HTML has been dumped to 'filester_debug.txt'. Please check the file to find the actual download URL structure.")
 
 
 
