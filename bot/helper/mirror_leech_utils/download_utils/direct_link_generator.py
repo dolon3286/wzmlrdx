@@ -851,99 +851,32 @@ def bunkr(url):
     return file_url, f"Referer: {referer}"
 
 def filester(url):
-    if "::" in url:
-        _password = url.split("::")[-1]
-        url = url.split("::")[-2]
-    else:
-        _password = ""
-
-    def _extract_link(html_text, base_url):
-        page = HTML(html_text)
-        direct_links = page.xpath(
-            "//a[@id='downloadbtn']/@href | //a[contains(@class, 'downloadbtn')]/@href | //a[contains(@class, 'btn-dow')]/@href | //a[contains(@href, '/d/')]/@href"
-        )
-        if not direct_links:
-            if script_link := search(r'(?:https?:)?//[^\'"\s>]+/(?:d|download)/[^\'"\s<]+', html_text):
-                direct_links = [script_link.group(0)]
-            elif script_link := search(r'window\.open\([\'"]([^\'"]+)[\'"]', html_text):
-                direct_links = [script_link.group(1)]
-            elif script_link := search(r'location\.href\s*=\s*[\'"]([^\'"]+)[\'"]', html_text):
-                direct_links = [script_link.group(1)]
-
-        if not direct_links:
-            return None
-
-        direct_link = direct_links[0]
-        if direct_link.startswith("//"):
-            direct_link = f"https:{direct_link}"
-        elif direct_link.startswith("/"):
-            direct_link = f"{base_url}{direct_link}"
-        return direct_link
-
+    """filester.me direct link generator"""
     with create_scraper() as session:
         try:
-            response = session.get(url, allow_redirects=True)
+            file_id = url.split("/")[-1]
+            # Perform the standard XFS POST request to bypass the first page
+            html = HTML(
+                session.post(
+                    url,
+                    data={"op": "download2", "id": file_id},
+                ).text
+            )
         except Exception as e:
             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
-
-        final_url = response.url
-        parsed_url = urlparse(final_url)
-        base_url = f"{parsed_url.scheme}://{parsed_url.hostname}"
-        html = HTML(response.text)
-
-        if html.xpath("//input[@name='password']") and not _password:
-            raise DirectDownloadLinkException(
-                f"ERROR:\n{PASSWORD_ERROR_MESSAGE.format(final_url)}"
-            )
-
-        file_id = html.xpath("//input[@name='id']/@value")
-        if file_id:
-            file_id = file_id[0]
-        else:
-            file_id = parsed_url.path.rstrip("/").split("/")[-1]
-
-        post_data = {"op": "download2", "id": file_id}
-        if _password:
-            post_data["password"] = _password
-
-        post_urls = [final_url]
-        if final_url.rstrip("/") != base_url.rstrip("/"):
-            post_urls.append(base_url + "/")
-
-        for post_url in post_urls:
-            try:
-                post_response = session.post(post_url, data=post_data, allow_redirects=False)
-            except Exception:
-                continue
-
-            if direct_link := post_response.headers.get("Location"):
-                if direct_link.startswith("/"):
-                    direct_link = f"{base_url}{direct_link}"
-                return direct_link, f"Referer: {base_url}/"
-
-            if direct_link := _extract_link(post_response.text, base_url):
-                return direct_link, f"Referer: {base_url}/"
-
-        # Some mirrors render a form with hidden fields that must be posted as-is
-        inputs = html.xpath("//form//input[@name]")
-        if inputs:
-            form_data = {i.get("name"): i.get("value", "") for i in inputs}
-            if _password and "password" in form_data:
-                form_data["password"] = _password
-            try:
-                form_response = session.post(final_url, data=form_data, allow_redirects=False)
-                if direct_link := form_response.headers.get("Location"):
-                    if direct_link.startswith("/"):
-                        direct_link = f"{base_url}{direct_link}"
-                    return direct_link, f"Referer: {base_url}/"
-                if direct_link := _extract_link(form_response.text, base_url):
-                    return direct_link, f"Referer: {base_url}/"
-            except Exception:
-                pass
-
-        if _password:
-            raise DirectDownloadLinkException("ERROR: Invalid password or file unavailable")
-        raise DirectDownloadLinkException("ERROR: Direct download link not found")
+            
+    # Extract the generated download link
+    if direct_link := html.xpath("//a[contains(@class,'btn btn-dow')]/@href"):
+        return direct_link[0]
+    elif direct_link := html.xpath("//a[@id='direct_link']/@href"):
+        return direct_link[0]
+    elif direct_link := html.xpath("//a[contains(@class,'btn')]/@href"):
+        # Fallback to catch generic download buttons if the class names change
+        for link in direct_link:
+            if "filester.me" in link or file_id in link:
+                return link
+                
+    raise DirectDownloadLinkException("ERROR: Direct link not found for filester.me")
 
 
 
