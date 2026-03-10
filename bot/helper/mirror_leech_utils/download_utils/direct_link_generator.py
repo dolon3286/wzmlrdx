@@ -205,8 +205,6 @@ def direct_link_generator(link):
         return pcloud(link)
     elif "qiwi.gg" in domain:
         return qiwi(link)
-    elif "filester.me" in domain:
-        return filester(link)
     elif "mp4upload.com" in domain:
         return mp4upload(link)
     elif "berkasdrive.com" in domain:
@@ -849,71 +847,6 @@ def bunkr(url):
             raise DirectDownloadLinkException("ERROR: File id not found")
     file_url, referer = _fetch_file_info(session, data_id)
     return file_url, f"Referer: {referer}"
-
-def filester(url):
-    """filester.me direct link generator"""
-    with create_scraper() as session:
-        try:
-            session.headers.update({"User-Agent": user_agent})
-            res = session.get(url)
-            page_text = res.text
-        except Exception as e:
-            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
-
-    # Strategy 1: Find the raw hex-encoded URL directly in the HTML
-    # This matches the structure: https://cacheX.filester.me/d/HEX_STRING.HASH
-    cache_pattern = r'(https?://(?:[a-zA-Z0-9-]+\.)?filester\.me/d/[a-fA-F0-9]{20,}(?:\.[a-fA-F0-9]+)?[^"\'\s\\>]*)'
-    
-    if match := search(cache_pattern, page_text):
-        direct_url = match.group(1).replace("\\/", "/")
-        # Ensure it forces a download rather than playing in browser
-        if "download=" not in direct_url:
-            direct_url += "?download=true" if "?" not in direct_url else "&download=true"
-        return direct_url
-
-    # Strategy 2: Bunkr API approach. Some clones fetch this URL via a POST request
-    file_id = url.split("/")[-1]
-    data_id = file_id
-    if id_match := search(r'data-file-id="([^"]+)"', page_text):
-        data_id = id_match.group(1)
-        
-    # Bunkr XOR decryption helper
-    def _decrypt_xor(data, key):
-        from base64 import b64decode
-        decoded = b64decode(data)
-        return bytes(byte ^ key[index % len(key)] for index, byte in enumerate(decoded)).decode("utf-8")
-        
-    # Standard Bunkr/Cyberdrop clone API endpoints
-    api_endpoints = [
-        "https://filester.me/api/_001_v2",
-        "https://filester.me/api/file/get",
-        f"https://filester.me/api/file/{data_id}"
-    ]
-    
-    for endpoint in api_endpoints:
-        try:
-            api_res = session.post(
-                endpoint, 
-                headers={"Referer": url, "Origin": "https://filester.me"}, 
-                json={"id": data_id}
-            ).json()
-            
-            if "url" in api_res:
-                if api_res.get("encrypted"):
-                    key = f"SECRET_KEY_{api_res['timestamp'] // 3600}".encode()
-                    return _decrypt_xor(api_res["url"], key)
-                return api_res["url"]
-        except:
-            pass
-            
-    # DEBUG: Dump the page source if we completely fail
-    try:
-        with open("filester_debug.txt", "w", encoding="utf-8") as f:
-            f.write(page_text)
-    except:
-        pass
-        
-    raise DirectDownloadLinkException("ERROR: Could not extract the hex URL. The HTML has been dumped to 'filester_debug.txt'.")
 
 
 def streamtape(url):
