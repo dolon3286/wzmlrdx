@@ -190,8 +190,7 @@ def direct_link_generator(link):
     elif "upload.ee" in domain:
         return uploadee(link)
     elif "gofile.io" in domain:
-        return gofile(link, auth)
-        return gofile(link, None)
+        return gofile(link)
     elif "send.cm" in domain:
         return send_cm(link)
     elif "tmpsend.com" in domain:
