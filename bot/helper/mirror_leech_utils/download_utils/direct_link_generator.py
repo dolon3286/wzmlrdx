@@ -205,6 +205,8 @@ def direct_link_generator(link):
         return pcloud(link)
     elif "qiwi.gg" in domain:
         return qiwi(link)
+    elif "filester.me" in domain:
+        return filester(link)
     elif "mp4upload.com" in domain:
         return mp4upload(link)
     elif "berkasdrive.com" in domain:
@@ -847,6 +849,55 @@ def bunkr(url):
             raise DirectDownloadLinkException("ERROR: File id not found")
     file_url, referer = _fetch_file_info(session, data_id)
     return file_url, f"Referer: {referer}"
+
+def filester(url):
+    if "::" in url:
+        _password = url.split("::")[-1]
+        url = url.split("::")[-2]
+    else:
+        _password = ""
+    parsed_url = urlparse(url)
+    base_url = f"{parsed_url.scheme}://{parsed_url.hostname}"
+    with create_scraper() as session:
+        try:
+            html = HTML(session.get(url).text)
+        except Exception as e:
+            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+        if html.xpath("//input[@name='password']") and not _password:
+            raise DirectDownloadLinkException(
+                f"ERROR:\n{PASSWORD_ERROR_MESSAGE.format(url)}"
+            )
+
+        file_id = html.xpath("//input[@name='id']/@value")
+        if file_id:
+            file_id = file_id[0]
+        else:
+            file_id = parsed_url.path.rstrip("/").split("/")[-1]
+        post_data = {"op": "download2", "id": file_id}
+        if _password:
+            post_data["password"] = _password
+
+        try:
+            response = session.post(base_url + "/", data=post_data, allow_redirects=False)
+        except Exception as e:
+            raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}") from e
+
+        if direct_link := response.headers.get("Location"):
+            return direct_link, f"Referer: {base_url}/"
+
+        page = HTML(response.text)
+        direct_links = page.xpath(
+            "//a[@id='downloadbtn']/@href | //a[contains(@class, 'btn-dow')]/@href | //a[contains(@href, '/d/')]/@href"
+        )
+        if not direct_links:
+            raise DirectDownloadLinkException("ERROR: Direct download link not found")
+
+        direct_link = direct_links[0]
+        if direct_link.startswith("/"):
+            direct_link = f"{base_url}{direct_link}"
+        return direct_link, f"Referer: {base_url}/"
+
 
 
 def streamtape(url):
