@@ -196,8 +196,13 @@ def get_progress_bar_string(pct):
     pct = float(str(pct).strip("%"))
     p = min(max(pct, 0), 100)
     cFull = int(p // 8)
-    p_str = "⬢" * cFull
-    p_str += "⬡" * (12 - cFull)
+
+# Replace these IDs with your custom emoji IDs for the progress bar
+    PRG_FULL = '<tg-emoji emoji-id="5422682311856501431">⬢</tg-emoji>'
+    PRG_EMPTY = '<tg-emoji emoji-id="5971816626796892111">⬡</tg-emoji>'
+    
+    p_str = PRG_FULL * cFull
+    p_str += PRG_EMPTY * (12 - cFull)
     return f"[{p_str}]"
 
 
