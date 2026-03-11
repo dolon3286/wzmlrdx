@@ -198,8 +198,8 @@ def get_progress_bar_string(pct):
     cFull = int(p // 8)
 
 # Replace these IDs with your custom emoji IDs for the progress bar
-    PRG_FULL = '<emoji id="5422682311856501431">⬢</emoji>'
-    PRG_EMPTY = '<emoji id="5971816626796892111">⬡</emoji>'
+    PRG_FULL = '<tg-emoji emoji-id="5422682311856501431">⬢</emoji>'
+    PRG_EMPTY = '<tg-emoji emoji-id="5971816626796892111">⬡</emoji>'
     
     p_str = PRG_FULL * cFull
     p_str += PRG_EMPTY * (12 - cFull)
@@ -224,15 +224,15 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     start_position = (page_no - 1) * STATUS_LIMIT
 
 # --- REPLACE THESE IDs WITH REAL ONES ---
-    EM_1 = '<emoji id="5877219383691972108">┠</emoji>'
-    EM_2 = '<emoji id="5195111279244619776">┟</emoji>'
-    EM_3 = '<emoji id="5287533898803211359">┖</emoji>'
-    EM_4 = '<emoji id="5411590687663608498">┠</emoji>'
-    EM_5 = '<emoji id="5422407403884798028">┟</emoji>'
-    EM_6 = '<emoji id="5424867354993513047">┖</emoji>'
-    EM_7 = '<emoji id="5436016445848831807">┠</emoji>'
-    EM_8 = '<emoji id="5435891415055878798">┟</emoji>'
-    EM_9 = '<emoji id="5416076321442777828">┖</emoji>'
+    EM_1 = '<tg-emoji emoji-id="5877219383691972108">┠</tg-emoji>'
+    EM_2 = '<tg-emoji emoji-id="5195111279244619776">┟</tg-emoji>'
+    EM_3 = '<tg-emoji emoji-id="5287533898803211359">┖</tg-emoji>'
+    EM_4 = '<tg-emoji emoji-id="5411590687663608498">┠</tg-emoji>'
+    EM_5 = '<tg-emoji emoji-id="5422407403884798028">┟</tg-emoji>'
+    EM_6 = '<tg-emoji emoji-id="5424867354993513047">┖</tg-emoji>'
+    EM_7 = '<tg-emoji emoji-id="5436016445848831807">┠</tg-emoji>'
+    EM_8 = '<tg-emoji emoji-id="5435891415055878798">┟</tg-emoji>'
+    EM_9 = '<tg-emoji emoji-id="5416076321442777828">┖</tg-emoji>'
     # ----------------------------------------
 
     for index, task in enumerate(
