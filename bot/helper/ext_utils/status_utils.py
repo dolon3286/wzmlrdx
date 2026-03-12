@@ -202,8 +202,6 @@ def get_progress_bar_string(pct):
     
     p_str = PRG_FULL * cFull
     p_str += PRG_EMPTY * (12 - cFull)
-    p_str = "⬢" * cFull
-    p_str += "⬡" * (12 - cFull)
     return f"[{p_str}]"
 
 
@@ -231,9 +229,11 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     EM_4 = '<tg-emoji emoji-id="5411590687663608498">⚡</tg-emoji>'
     EM_5 = '<tg-emoji emoji-id="5422407403884798028">🍀</tg-emoji>'
     EM_6 = '<tg-emoji emoji-id="5424867354993513047">🌷</tg-emoji>'
-    EM_7 = '<tg-emoji emoji-id="5436016445848831807">⬇️</tg-emoji>'
-    EM_8 = '<tg-emoji emoji-id="5435891415055878798">⬆️</tg-emoji>'
-    EM_9 = '<tg-emoji emoji-id="5416076321442777828">❌</tg-emoji>'
+    EM_7 = '<tg-emoji emoji-id="5443127283898405358">⬇️</tg-emoji>'
+    EM_8 = '<tg-emoji emoji-id="5445355530111437729">⬆️</tg-emoji>'
+    EM_9 = '<tg-emoji emoji-id="5765005318610228026">❌</tg-emoji>'
+    EM_10 = '<tg-emoji emoji-id="5285439518130857782">❤️</tg-emoji>'
+    EM_11 = '<tg-emoji emoji-id="5190642636356072894">☔️</tg-emoji>'
     # ----------------------------------------
 
     for index, task in enumerate(
@@ -321,6 +321,6 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
                 buttons.data_button(label, f"status {sid} st {status_value}")
     buttons.data_button("♻️ Refresh", f"status {sid} ref", position="header")
     button = buttons.build_menu(8)
-    msg += f"\n┟ <b>CPU</b> → {cpu_percent()}% | <b>F</b> → {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100 - disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
-    msg += f"\n┖ <b>RAM</b> → {virtual_memory().percent}% | <b>UP</b> → {get_readable_time(time() - bot_start_time)}"
+    msg += f"\n{EM_10} <b>CPU</b> → {cpu_percent()}% | <b>F</b> → {get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)} [{round(100 - disk_usage(DOWNLOAD_DIR).percent, 1)}%]"
+    msg += f"\n{EM_11} <b>RAM</b> → {virtual_memory().percent}% | <b>UP</b> → {get_readable_time(time() - bot_start_time)}"
     return msg, button
