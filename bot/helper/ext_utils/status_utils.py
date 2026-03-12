@@ -197,11 +197,11 @@ def get_progress_bar_string(pct):
     p = min(max(pct, 0), 100)
     cFull = int(p // 8)
 # Replace these IDs with your custom emoji IDs for the progress bar
-    PRG_FULL = '<tg-emoji emoji-id="5422682311856501431">🌷</emoji>'
-    PRG_EMPTY = '<tg-emoji emoji-id="5971816626796892111">🔹</emoji>'
+    PRG_FULL = '<tg-emoji emoji-id="5422682311856501431">🌷</tg-emoji>'
+    PRG_EMPTY = '<tg-emoji emoji-id="5971816626796892111">🔹</tg-emoji>'
     
-    p_str = {PRG_FULL} * cFull
-    p_str += {PRG_EMPTY} * (12 - cFull)
+    p_str = PRG_FULL * cFull
+    p_str += PRG_EMPTY * (12 - cFull)
     return f"[{p_str}]"
 
 
@@ -305,7 +305,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         else:
             msg = f"No Active {status} Tasks!\n\n"
 
-    msg += "{EM_12} <b><u>Bot Stats</u></b>"
+    msg += f"\n{EM_12} <b><u>Bot Stats</u></b>"
     buttons = ButtonMaker()
     if not is_user:
         buttons.data_button("📜 TStats", f"status {sid} ov", position="header")
