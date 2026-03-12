@@ -235,6 +235,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
     EM_10 = '<tg-emoji emoji-id="5285439518130857782">❤️</tg-emoji>'
     EM_11 = '<tg-emoji emoji-id="5190642636356072894">☔️</tg-emoji>'
     EM_12 = '<tg-emoji emoji-id="5256218768262056531">🟪</tg-emoji>'
+    EM_13 = '<tg-emoji emoji-id="5285535716808342592">☠️</tg-emoji>'
     # ----------------------------------------
 
     for index, task in enumerate(
@@ -291,7 +292,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             msg += f"\n{EM_5} <b>Time</b> → <i>{task.seeding_time()}</i> | <b>Elapsed</b> → <i>{get_readable_time(elapsed)}</i>"
         else:
             msg += f"\n{EM_6} <b>Size</b> → <i>{task.size()}</i>"
-        msg += f"\n{EM_4} <b>Engine</b> → <i>{task.engine}</i>"
+        msg += f"\n{EM_13} <b>Engine</b> → <i>{task.engine}</i>"
         msg += f"\n{EM_7} <b>In Mode</b> → <i>{task.listener.mode[0]}</i>"
         msg += f"\n{EM_8} <b>Out Mode</b> → <i>{task.listener.mode[1]}</i>"
         # TODO: Add Bt Sel
