@@ -3,4 +3,7 @@ services:
     build: .
     command: bash start.sh
     restart: on-failure
-    network_mode: "host"
+    ports:
+      - "8082:80"
+    volumes:
+      - /data/mb2/downloads:/usr/src/app/downloads
