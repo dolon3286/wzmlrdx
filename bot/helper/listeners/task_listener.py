@@ -41,6 +41,7 @@ from ..ext_utils.files_utils import (
 from ..ext_utils.links_utils import is_gdrive_id
 from ..ext_utils.status_utils import get_readable_file_size, get_readable_time
 from ..ext_utils.task_manager import check_running_tasks, start_from_queued
+from ..ext_utils.tmdb_utils import fetch_tmdb_poster
 from ..mirror_leech_utils.uphoster_utils.gofile_utils.upload import GoFileUpload
 from ..mirror_leech_utils.uphoster_utils.buzzheavier_utils.upload import (
     BuzzHeavierUpload,
@@ -403,8 +404,15 @@ class TaskListener(TaskConfig):
             and Config.DATABASE_URL
         ):
             await database.rm_complete_task(self.message.link)
+        poster_data = await fetch_tmdb_poster(self.name)
+        poster_photo = poster_data["poster"] if poster_data else None
+        title_markup = f"<b><i>{escape(self.name)}</i></b>"
+        if poster_data and poster_data.get("url"):
+            title_markup = (
+                f"<a href='{poster_data['url']}'><b><i>{escape(self.name)}</i></b></a>"
+            )
         msg = (
-            f"<b><i>{escape(self.name)}</i></b>\n│"
+            f"{title_markup}\n│"
             f"\n┟ <b>Task Size</b> → {get_readable_file_size(self.size)}"
             f"\n┠ <b>Time Taken</b> → {get_readable_time(time() - self.message.date.timestamp())}"
             f"\n┠ <b>In Mode</b> → {self.mode[0]}"
@@ -431,10 +439,12 @@ class TaskListener(TaskConfig):
 
             button = buttons.build_menu(1) if link else None
 
-            await send_message(self.user_id, msg, button)
+            await send_message(self.user_id, msg, button, photo=poster_photo)
             if Config.LEECH_DUMP_CHAT:
-                await send_message(int(Config.LEECH_DUMP_CHAT), msg, button)
-            await send_message(self.message, user_message, button)
+                await send_message(
+                    int(Config.LEECH_DUMP_CHAT), msg, button, photo=poster_photo
+                )
+            await send_message(self.message, user_message, button, photo=poster_photo)
 
         elif self.is_leech:
             msg += f"\n<b>Total Files: </b>{folders}"
@@ -547,12 +557,14 @@ class TaskListener(TaskConfig):
                 msg += multi_link_msg + "\n"
 
             if self.bot_pm and self.is_super_chat:
-                await send_message(self.user_id, msg, button)
+                await send_message(self.user_id, msg, button, photo=poster_photo)
 
             if hasattr(Config, "MIRROR_LOG_ID") and Config.MIRROR_LOG_ID:
-                await send_message(Config.MIRROR_LOG_ID, msg, button)
+                await send_message(
+                    Config.MIRROR_LOG_ID, msg, button, photo=poster_photo
+                )
 
-            await send_message(self.message, group_msg, button)
+            await send_message(self.message, group_msg, button, photo=poster_photo)
         if self.seed:
             await clean_target(self.up_dir)
             async with queue_dict_lock:
