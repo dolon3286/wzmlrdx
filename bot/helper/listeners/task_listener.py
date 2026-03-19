@@ -404,31 +404,35 @@ class TaskListener(TaskConfig):
             and Config.DATABASE_URL
         ):
             await database.rm_complete_task(self.message.link)
+        
         poster_data = await fetch_tmdb_poster(self.name)
-        poster_photo = poster_data["poster"] if poster_data else None
-        title_markup = f"<b><i>{escape(self.name)}</i></b>"
-        if poster_data and poster_data.get("url"):
-            title_markup = (
-                f"<a href='{poster_data['url']}'><b><i>{escape(self.name)}</i></b></a>"
-            )
+        poster_url = poster_data["poster"] if poster_data else None
+
+        # Link directly to the poster image to force Telegram auto-preview
+        if poster_url:
+            title_markup = f"<a href='{poster_url}'><b><i>{escape(self.name)}</i></b></a>"
+        else:
+            title_markup = f"<b><i>{escape(self.name)}</i></b>"
+
         msg = (
             f"{title_markup}\n│"
-            f"\n┟ <b>Task Size</b> → {get_readable_file_size(self.size)}"
-            f"\n┠ <b>Time Taken</b> → {get_readable_time(time() - self.message.date.timestamp())}"
-            f"\n┠ <b>In Mode</b> → {self.mode[0]}"
-            f"\n┠ <b>Out Mode</b> → {self.mode[1]}"
+            f"\n├ <b>Task Size</b> → {get_readable_file_size(self.size)}"
+            f"\n├ <b>Time Taken</b> → {get_readable_time(time() - self.message.date.timestamp())}"
+            f"\n├ <b>In Mode</b> → #{self.mode[0]}"
+            f"\n├ <b>Out Mode</b> → #{self.mode[1]}"
         )
         LOGGER.info(f"Task Done: {self.name}")
+        
         if self.is_yt:
             buttons = ButtonMaker()
             if mime_type == "Folder/Playlist":
-                msg += "\n┠ <b>Type</b> → Playlist"
-                msg += f"\n┖ <b>Total Videos</b> → {files}"
+                msg += "\n├ <b>Type</b> → Playlist"
+                msg += f"\n└ <b>Total Videos</b> → {files}"
                 if link:
                     buttons.url_button("🔗 View Playlist", link)
                 user_message = f"{self.tag}\nYour playlist ({files} videos) has been uploaded to YouTube successfully!"
             else:
-                msg += "\n┖ <b>Type</b> → Video"
+                msg += "\n└ <b>Type</b> → Video"
                 if link:
                     buttons.url_button("🔗 View Video", link)
                 user_message = (
@@ -439,18 +443,19 @@ class TaskListener(TaskConfig):
 
             button = buttons.build_menu(1) if link else None
 
-            await send_message(self.user_id, msg, button, photo=poster_photo)
+            # Removed photo argument here
+            await send_message(self.user_id, msg, button)
             if Config.LEECH_DUMP_CHAT:
                 await send_message(
-                    int(Config.LEECH_DUMP_CHAT), msg, button, photo=poster_photo
+                    int(Config.LEECH_DUMP_CHAT), msg, button
                 )
-            await send_message(self.message, user_message, button, photo=poster_photo)
+            await send_message(self.message, user_message, button)
 
         elif self.is_leech:
             msg += f"\n<b>Total Files: </b>{folders}"
             if mime_type != 0:
-                msg += f"\n┠ <b>Corrupted Files</b> → {mime_type}"
-            msg += f"\n┖ <b>Task By</b> → {self.tag}\n\n"
+                msg += f"\n├ <b>Corrupted Files</b> → {mime_type}"
+            msg += f"\n└ <b>Task By</b> → {self.tag}\n\n"
 
             if self.bot_pm:
                 pmsg = msg
@@ -474,7 +479,7 @@ class TaskListener(TaskConfig):
                         if chat_id.isdigit():
                             chat_id = f"-100{chat_id}"
                         flink = f"https://t.me/{TgClient.BNAME}?start={encode_slink('file' + chat_id + '&&' + msg_id)}"
-                        fmsg += f"\n┖ <b>Get Media</b> → <a href='{flink}'>Store Link</a> | <a href='https://t.me/share/url?url={flink}'>Share Link</a>"
+                        fmsg += f"\n└ <b>Get Media</b> → <a href='{flink}'>Store Link</a> | <a href='https://t.me/share/url?url={flink}'>Share Link</a>"
                     fmsg += "\n"
                     if len(fmsg.encode() + msg.encode()) > 4000:
                         await send_message(log_chat, msg + fmsg)
@@ -483,10 +488,10 @@ class TaskListener(TaskConfig):
                 if fmsg != "":
                     await send_message(log_chat, msg + fmsg)
         else:
-            msg += f"\n│\n┟ <b>Type</b> → {mime_type}"
+            msg += f"\n│\n├ <b>Type</b> → {mime_type}"
             if mime_type == "Folder":
-                msg += f"\n┠ <b>SubFolders</b> → {folders}"
-                msg += f"\n┠ <b>Files</b> → {files}"
+                msg += f"\n├ <b>SubFolders</b> → {folders}"
+                msg += f"\n├ <b>Files</b> → {files}"
 
             multi_link_msg = ""
             multi_links = []
@@ -544,27 +549,29 @@ class TaskListener(TaskConfig):
                 button = buttons.build_menu(2)
             else:
                 if not multi_link_msg:
-                    msg += f"\n┃\n┠ Path: <code>{rclone_path}</code>"
+                    msg += f"\n│\n├ Path: <code>{rclone_path}</code>"
                 button = None
-            msg += f"\n┃\n┖ <b>Task By</b> → {self.tag}\n\n"
+            msg += f"\n│\n└ <b>Task By</b> → {self.tag}\n\n"
             group_msg = (
                 msg + "〶 <b><u>Action Performed :</u></b>\n"
-                "⋗ <i>Cloud link(s) have been sent to User PM</i>\n\n"
+                "> <i>Cloud link(s) have been sent to User PM</i>\n\n"
             )
 
             if multi_link_msg:
                 group_msg += multi_link_msg + "\n"
                 msg += multi_link_msg + "\n"
 
+            # Removed photo argument here
             if self.bot_pm and self.is_super_chat:
-                await send_message(self.user_id, msg, button, photo=poster_photo)
+                await send_message(self.user_id, msg, button)
 
             if hasattr(Config, "MIRROR_LOG_ID") and Config.MIRROR_LOG_ID:
                 await send_message(
-                    Config.MIRROR_LOG_ID, msg, button, photo=poster_photo
+                    Config.MIRROR_LOG_ID, msg, button
                 )
 
-            await send_message(self.message, group_msg, button, photo=poster_photo)
+            await send_message(self.message, group_msg, button)
+            
         if self.seed:
             await clean_target(self.up_dir)
             async with queue_dict_lock:
