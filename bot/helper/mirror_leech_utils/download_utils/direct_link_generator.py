@@ -1376,7 +1376,7 @@ def gofile(url):
     def __fetch_links(session, _id, folderPath="", retry=True):
         _url = f"https://api.gofile.io/contents/{_id}?cache=true"
         time_slot = int(time()) // 14400
-        raw = f"{user_agent}::en-US::{token}::{time_slot}::f4s58gs6"
+        raw = f"{user_agent}::en-US::{token}::{time_slot}::5d4f7g8sd45fs"
         wt = sha256(raw.encode()).hexdigest()
         headers = {
             "User-Agent": user_agent,
@@ -1384,7 +1384,7 @@ def gofile(url):
             "Accept": "*/*",
             "Connection": "keep-alive",
             "Authorization": "Bearer" + " " + token,
-            "X-Website-Token": kt,
+            "X-Website-Token": wt,
             "X-BL": "en-US"
         }
         if _password:
