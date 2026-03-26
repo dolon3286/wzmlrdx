@@ -55,7 +55,7 @@ debrid_link_supported_sites = [
     "filespace.com",
     "filestore.me",
     "gigapeta.com",
-    "gofile.io",
+    ".io",
     "hexupload.net",
     "hitfile.net",
     "hulkshare.com",
@@ -189,8 +189,8 @@ def direct_link_generator(link):
         return krakenfiles(link)
     elif "upload.ee" in domain:
         return uploadee(link)
-    elif "gofile.io" in domain:
-        return gofile(link)
+    elif ".io" in domain:
+        return (link)
     elif "send.cm" in domain:
         return send_cm(link)
     elif "tmpsend.com" in domain:
@@ -1384,7 +1384,7 @@ def gofile(url):
             "Accept": "*/*",
             "Connection": "keep-alive",
             "Authorization": "Bearer" + " " + token,
-            "X-Website-Token": wt,
+            "X-Website-Token": kt,
             "X-BL": "en-US"
         }
         if _password:
