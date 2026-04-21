@@ -705,20 +705,21 @@ def pixeldrain(url):
         if not parts:
             raise DirectDownloadLinkException("ERROR: Direct link not found")
 
+        header = "Referer: https://pixeldrain.com/"        
         resource = parts[-2] if len(parts) >= 2 else ""
         code = parts[-1]
 
         if parts[0] == "api" and len(parts) >= 3:
             api_resource = parts[1]
             if api_resource == "file":
-                return f"https://pixeldrain.com/api/file/{code}?download"
+                return f"https://pixeldrain.com/api/file/{code}?download", header
             if api_resource == "list":
-                return f"https://pixeldrain.com/api/list/{code}/zip?download"
+                return f"https://pixeldrain.com/api/list/{code}/zip?download", header
 
         if resource in {"u", "file"}:
-            return f"https://pixeldrain.com/api/file/{code}?download"
+            return f"https://pixeldrain.com/api/file/{code}?download", header
         if resource in {"l", "list"}:
-            return f"https://pixeldrain.com/api/list/{code}/zip?download"
+            return f"https://pixeldrain.com/api/list/{code}/zip?download", header
         raise DirectDownloadLinkException("ERROR: Direct link not found")
     except DirectDownloadLinkException:
         raise
