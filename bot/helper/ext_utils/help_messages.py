@@ -399,6 +399,7 @@ def get_bot_commands():
         "MediaInfo": "[reply/link] Get MediaInfo of the Target Media",
         "Select": "[gid/reply] Select files for NZB, Aria2, Qbit Tasks",
         "Ping": "Ping Bot to test Response Speed",
+        "SpeedTest": "Check Bot Speed using Speedtest.net",
         "Status": "[id/me] Tasks Status of Bot",
         "Stats": "Bot, OS, Repo & System full Statistics",
         "Rss": "User RSS Management Settings",
@@ -419,7 +420,7 @@ def get_bot_commands():
             if plugin_info.enabled and plugin_info.commands:
                 for cmd in plugin_info.commands:
                     if cmd == "speedtest":
-                        commands["SpeedTest"] = "Check Bot Speed using Speedtest.com"
+                        commands[""] = "Check Bot Speed using Speedtest.net"
 
     return commands
 
@@ -445,7 +446,7 @@ def get_help_string():
             cmd_str = f"/{cmd_attr}"
 
         if key == "SpeedTest" and key in BOT_COMMANDS:
-            help_lines.append(f"{cmd_str}: Check Bot Speed using Speedtest.com")
+            help_lines.append(f"{cmd_str}: Check Bot Speed using Speedtest.net")
         elif key == "Mirror":
             help_lines.append(f"{cmd_str}: Start mirroring to cloud.")
         elif key == "QbMirror":
