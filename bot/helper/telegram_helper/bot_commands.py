@@ -30,6 +30,7 @@ class BotCommands:
         "Status": ["status", "s", "statusall"],
         "MediaInfo": ["mediainfo", "mi"],
         "Ping": "ping",
+        "SpeedTest": ["speedtest", "stest"],
         "Restart": ["restart", "r", "restartall"],
         "RestartSessions": ["restartses", "rses"],
         "Broadcast": ["broadcast", "bc"],
