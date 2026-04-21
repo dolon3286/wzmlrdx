@@ -699,32 +699,12 @@ def onedrive(link):
 
 def pixeldrain(url):
     try:
-        parsed = urlparse(url)
-        path = parsed.path.rstrip("/")
-        parts = [part for part in path.split("/") if part]
-        if not parts:
-            raise DirectDownloadLinkException("ERROR: Direct link not found")
-
-        header = "Referer: https://pixeldrain.com/"        
-        resource = parts[-2] if len(parts) >= 2 else ""
-        code = parts[-1]
-
-        if parts[0] == "api" and len(parts) >= 3:
-            api_resource = parts[1]
-            if api_resource == "file":
-                return f"https://pixeldrain.com/api/file/{code}?download", header
-            if api_resource == "list":
-                return f"https://pixeldrain.com/api/list/{code}/zip?download", header
-
-        if resource in {"u", "file"}:
-            return f"https://pixeldrain.com/api/file/{code}?download", header
-        if resource in {"l", "list"}:
-            return f"https://pixeldrain.com/api/list/{code}/zip?download", header
-        raise DirectDownloadLinkException("ERROR: Direct link not found")
-    except DirectDownloadLinkException:
-        raise
+        url = url.rstrip("/")
+        code = url.split("/")[-1].split("?", 1)[0]
+        response = get(f"https://{url.split('/')[2]}/api/file/", allow_redirects=True)
+        return response.url + code
     except Exception as e:
-        raise DirectDownloadLinkException("ERROR: Direct link not found") from e
+        raise DirectDownloadLinkException("ERROR: Direct link not found")
 
 def bunkr(url):
     root_dl = "https://get.bunkrr.su"
