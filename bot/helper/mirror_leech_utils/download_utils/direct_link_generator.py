@@ -55,7 +55,7 @@ debrid_link_supported_sites = [
     "filespace.com",
     "filestore.me",
     "gigapeta.com",
-    ""gofile.io",
+    "gofile.io",
     "hexupload.net",
     "hitfile.net",
     "hulkshare.com",
