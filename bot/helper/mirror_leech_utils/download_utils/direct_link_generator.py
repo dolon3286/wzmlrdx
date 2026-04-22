@@ -55,7 +55,7 @@ debrid_link_supported_sites = [
     "filespace.com",
     "filestore.me",
     "gigapeta.com",
-    ".io",
+    ""gofile.io",
     "hexupload.net",
     "hitfile.net",
     "hulkshare.com",
@@ -175,6 +175,8 @@ def direct_link_generator(link):
         return hxfile(link)
     elif "1drv.ms" in domain:
         return onedrive(link)
+    elif "gofile.io" in domain:
+        return gofile(link)
     elif "pixeldrain.com" in domain:
         return pixeldrain(link)
     elif "bunkr" in domain:
