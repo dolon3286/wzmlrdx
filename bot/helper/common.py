@@ -873,7 +873,7 @@ class TaskConfig:
         checked = False
         if (not self.mkvtoolnix_cmds) and self.mkv_subtitle:
             self.mkvtoolnix_cmds = {
-                f"mkvmerge -o mltb.mkv mltb.video --language 0:eng {self.mkv_subtitle}"
+                f"mkvmerge -o mltb.SUB.EN.mkv mltb.video --language 0:eng {self.mkv_subtitle}"
             }
         cmds = [
             [part.strip() for part in split(item) if part.strip()]
