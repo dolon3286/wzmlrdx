@@ -1,4 +1,5 @@
 from base64 import b64encode
+from os import makedirs
 from re import match as re_match
 
 from aiofiles.os import path as aiopath
@@ -236,9 +237,14 @@ class Mirror(TaskListener):
             cmd_token = input_list[0].split("@")[0]
             if reply and getattr(reply, "document", None):
                 try:
-                    tg_file = await self.client.get_file(reply.document.file_id)
-                    self.mkv_subtitle = (
-                        f"https://api.telegram.org/file/bot{Config.BOT_TOKEN}/{tg_file.file_path}"
+                    sub_dir = f"{DOWNLOAD_DIR}mkvsubs/"
+                    if not await aiopath.exists(sub_dir):
+                        await sync_to_async(makedirs, sub_dir, exist_ok=True)
+                    sub_name = reply.document.file_name or f"subtitle_{self.mid}.srt"
+                    sub_path = f"{sub_dir}{self.mid}_{sub_name}"
+                    self.mkv_subtitle = await self.client.download_media(
+                        message=reply,
+                        file_name=sub_path,
                     )
                 except Exception as e:
                     LOGGER.error(e)
