@@ -925,7 +925,7 @@ class TaskConfig:
             if not checked:
                 return "No video files found for MKVToolNix commands."
         except Exception as e:
-            return str(e)
+            return f"MKVToolNix error: {e}"
         return dl_path
 
     async def substitute(self, dl_path):

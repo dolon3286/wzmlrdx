@@ -236,7 +236,7 @@ class TaskListener(TaskConfig):
                 up_path,
                 gid,
             )
-            if isinstance(up_path, str):
+            if isinstance(up_path, str) and up_path.startswith("MKVToolNix error:"):
                 LOGGER.error(up_path)
                 return await self.on_upload_error(up_path)
 
