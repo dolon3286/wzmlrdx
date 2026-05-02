@@ -138,6 +138,7 @@ class TaskConfig:
         self.ffmpeg_cmds = None
         self.mkvtoolnix_cmds = None
         self.mkv_subtitle = ""
+        self.mkv_subtitle_cleanup = False
         self.metadata_title = None
         self.chat_thread_id = None
         self.subproc = None
@@ -943,6 +944,15 @@ class TaskConfig:
                 return "No video files found for MKVToolNix commands."
         except Exception as e:
             return f"MKVToolNix error: {e}"
+        finally:
+            if (
+                self.mkv_subtitle_cleanup
+                and self.mkv_subtitle
+                and self.mkv_subtitle.startswith(f"{DOWNLOAD_DIR}mkvsubs/")
+                and await aiopath.exists(self.mkv_subtitle)
+            ):
+                with suppress(Exception):
+                    await remove(self.mkv_subtitle)
         return dl_path
 
     async def substitute(self, dl_path):

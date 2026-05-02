@@ -241,7 +241,7 @@ leech_as = """<b>Leech as</b>: -doc -med
 
 ffmpeg_cmds = """<b>FFmpeg Commands</b>: -ff
 <b>MKVToolNix Commands</b>: -mkv
-<b>Quick subtitle merge</b>: -mkvsub (reply to subtitle document, source file will be replaced with merged output)
+<b>Quick subtitle merge</b>: -mkvsub (reply to subtitle document, source file will be replaced with merged output and temporary subtitle file will be auto-deleted)
 list of lists of ffmpeg commands. You can set multiple ffmpeg commands for all files before upload. Don't write ffmpeg at beginning, start directly with the arguments.
 Notes:
 1. Add <code>-del</code> to the list(s) which you want from the bot to delete the original files after command run complete!

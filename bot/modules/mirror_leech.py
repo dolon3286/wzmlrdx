@@ -246,6 +246,7 @@ class Mirror(TaskListener):
                         message=reply,
                         file_name=sub_path,
                     )
+                    self.mkv_subtitle_cleanup = True
                 except Exception as e:
                     LOGGER.error(e)
             if not self.mkv_subtitle:
