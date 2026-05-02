@@ -872,7 +872,7 @@ class TaskConfig:
         checked = False
         if (not self.mkvtoolnix_cmds) and self.mkv_subtitle:
             self.mkvtoolnix_cmds = {
-                f"mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng {self.mkv_subtitle}"
+                f"mkvmerge -o mltb.mkv mltb.video --language 0:eng {self.mkv_subtitle}"
             }
         cmds = [
             [part.strip() for part in split(item) if part.strip()]
@@ -886,7 +886,8 @@ class TaskConfig:
                 if await aiopath.isfile(dl_path):
                     checked = True
                     file_path = dl_path
-                    if not await is_video(file_path):
+                    is_video, _, _ = await get_document_type(file_path)
+                    if not is_video:
                         continue
                     base_name = ospath.splitext(ospath.basename(file_path))[0]
                     var_cmd = [
@@ -905,7 +906,8 @@ class TaskConfig:
                     for dirpath, _, files in await sync_to_async(walk, dl_path):
                         for file in files:
                             f_path = ospath.join(dirpath, file)
-                            if not await is_video(f_path):
+                            is_video, _, _ = await get_document_type(f_path)
+                            if not is_video:
                                 continue
                             base_name = ospath.splitext(ospath.basename(f_path))[0]
                             var_cmd = [

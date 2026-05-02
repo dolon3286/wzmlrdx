@@ -214,7 +214,7 @@ In bot command `-opt`:
 Use `-mkv` to run MKVToolNix inside the mirror pipeline before upload.
 
 ```bash
-/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]
+/mirror {video_link} -mkv ["mkvmerge -o mltb.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]
 ```
 
 ```bash
@@ -222,13 +222,13 @@ Use `-mkv` to run MKVToolNix inside the mirror pipeline before upload.
 ```
 
 ```bash
-/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng /usr/src/app/subs/movie.srt"]
+/mirror {video_link} -mkv ["mkvmerge -o mltb.mkv mltb.video --language 0:eng /usr/src/app/subs/movie.srt"]
 ```
 
 ```bash
 (Reply to subtitle file) /mirror{suffix} {video_link} -mkvsub
 ```
-(quick mode: auto-runs `mkvmerge` to produce `mltb.subbed.mkv` before upload; suffix example: /mirror8 or /m8)
+(quick mode: auto-runs `mkvmerge` to produce `mltb.mkv` before upload; suffix example: /mirror8 or /m8)
 
 > Note: MKVToolNix works on MKV containers. For MP4/other containers, remux to MKV first.
 

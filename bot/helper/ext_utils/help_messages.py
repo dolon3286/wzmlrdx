@@ -260,7 +260,7 @@ Examples: ["-i mltb.mkv -c copy -c:s srt mltb.mkv", "-i mltb.video -c copy -c:s 
 • <b>Note:</b> MKVToolNix commands are for MKV containers. For MP4/other containers, remux to MKV first.
 
 <b>Bot Command Examples:</b>
-• <code>/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]</code>
+• <code>/mirror {video_link} -mkv ["mkvmerge -o mltb.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]</code>
 • <code>/mirror {folder_link} -mkv ["mkvextract tracks mltb.video 2:mltb.srt"]</code>
 • <code>(Reply to subtitle file) /mirror{suffix} {video_link} -mkvsub</code> (suffix example: /mirror8 or /m8)
 Here I will explain how to use mltb.* which is reference to files you want to work on.
