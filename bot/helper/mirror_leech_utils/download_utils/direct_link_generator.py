@@ -1325,19 +1325,13 @@ def linkBox(url: str):
 
 def gofile(url, auth):
     try:
-        _id = url.split('/')[-1]
-        worker_base_url = "https://gofile.moron-bots.workers.dev/"
-        gofile_url = f"{worker_base_url}{_id}"
-        return gofile_url
-    except Exception as e:
-        raise e
-
-    '''    
-    try:
         _password = sha256(auth[1].encode("utf-8")).hexdigest() if auth else ""
         _id = url.split("/")[-1]
     except Exception as e:
         raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}")
+
+    # Your worker base URL
+    worker_base_url = "https://gofile.moron-bots.workers.dev"
 
     def __get_token(session):
         headers = {
@@ -1355,8 +1349,8 @@ def gofile(url, auth):
         except Exception as e:
             raise e
 
-    def __fetch_links(session, _id, folderPath=""):
-        _url = f"https://api.gofile.io/contents/{_id}?wt=4fd6sg89d7s6&cache=true"
+    def __fetch_links(session, current_id, folderPath=""):
+        _url = f"https://api.gofile.io/contents/{current_id}?wt=4fd6sg89d7s6&cache=true"
         headers = {
             "User-Agent": user_agent,
             "Accept-Encoding": "gzip, deflate, br",
@@ -1370,23 +1364,20 @@ def gofile(url, auth):
             _json = session.get(_url, headers=headers).json()
         except Exception as e:
             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}")
+            
         if _json["status"] in "error-passwordRequired":
-            raise DirectDownloadLinkException(
-                f"ERROR:\n{PASSWORD_ERROR_MESSAGE.format(url)}"
-            )
+            raise DirectDownloadLinkException(f"ERROR:\n{PASSWORD_ERROR_MESSAGE.format(url)}")
         if _json["status"] in "error-passwordWrong":
             raise DirectDownloadLinkException("ERROR: This password is wrong !")
         if _json["status"] in "error-notFound":
-            raise DirectDownloadLinkException(
-                "ERROR: File not found on gofile's server"
-            )
+            raise DirectDownloadLinkException("ERROR: File not found on gofile's server")
         if _json["status"] in "error-notPublic":
             raise DirectDownloadLinkException("ERROR: This folder is not public")
 
         data = _json["data"]
 
         if not details["title"]:
-            details["title"] = data["name"] if data["type"] == "folder" else _id
+            details["title"] = data["name"] if data["type"] == "folder" else current_id
 
         contents = data["children"]
         for content in contents.values():
@@ -1401,11 +1392,17 @@ def gofile(url, auth):
             else:
                 if not folderPath:
                     folderPath = details["title"]
+                
+                # ---> THE FIX IS HERE <---
+                # We apply your worker base URL to each individual file's ID
+                worker_link = f"{worker_base_url}/{content['id']}"
+                
                 item = {
                     "path": path.join(folderPath),
                     "filename": content["name"],
-                    "url": content["link"],
+                    "url": worker_link, # Sends the worker link to Aria2 instead of standard Gofile link
                 }
+                
                 if "size" in content:
                     size = content["size"]
                     if isinstance(size, str) and size.isdigit():
@@ -1414,6 +1411,7 @@ def gofile(url, auth):
                 details["contents"].append(item)
 
     details = {"contents": [], "title": "", "total_size": 0}
+    
     with Session() as session:
         try:
             token = __get_token(session)
@@ -1428,7 +1426,6 @@ def gofile(url, auth):
     if len(details["contents"]) == 1:
         return (details["contents"][0]["url"], details["header"])
     return details
-    '''
 
 
 def mediafireFolder(url):
