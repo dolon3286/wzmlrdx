@@ -1,5 +1,6 @@
 import re
-from asyncio import gather, sleep
+from asyncio import create_subprocess_exec, gather, sleep
+from asyncio.subprocess import PIPE
 from contextlib import suppress
 from os import path as ospath, walk
 from re import sub
