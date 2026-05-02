@@ -879,6 +879,21 @@ class TaskConfig:
             [part.strip() for part in split(item) if part.strip()]
             for item in self.mkvtoolnix_cmds
         ]
+        async def replace_with_merged(var_cmd, source_path):
+            if not self.mkv_subtitle:
+                return
+            if "-o" not in var_cmd:
+                return
+            try:
+                out_path = var_cmd[var_cmd.index("-o") + 1]
+            except Exception:
+                return
+            if out_path and out_path != source_path and await aiopath.exists(out_path):
+                try:
+                    await remove(source_path)
+                except Exception:
+                    pass
+                await move(out_path, source_path)
         try:
             for mkv_cmd in cmds:
                 self.proceed_count = 0
@@ -902,6 +917,7 @@ class TaskConfig:
                     _, stderr = await cmd_exec.communicate()
                     if cmd_exec.returncode != 0:
                         return f"MKVToolNix error: {stderr.decode().strip()}"
+                    await replace_with_merged(var_cmd, file_path)
                 else:
                     checked = True
                     for dirpath, _, files in await sync_to_async(walk, dl_path):
@@ -922,6 +938,7 @@ class TaskConfig:
                             _, stderr = await cmd_exec.communicate()
                             if cmd_exec.returncode != 0:
                                 return f"MKVToolNix error: {stderr.decode().strip()}"
+                            await replace_with_merged(var_cmd, f_path)
             if not checked:
                 return "No video files found for MKVToolNix commands."
         except Exception as e:
