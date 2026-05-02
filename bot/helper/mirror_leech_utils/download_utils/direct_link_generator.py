@@ -7,7 +7,7 @@ from os import path as ospath
 from re import findall, match, search
 from requests import Session, post, get, RequestException
 from requests.adapters import HTTPAdapter
-from time import sleep, time
+from time import sleep
 from urllib.parse import parse_qs, urlparse, quote
 from urllib3.util.retry import Retry
 from uuid import uuid4
@@ -175,8 +175,6 @@ def direct_link_generator(link):
         return hxfile(link)
     elif "1drv.ms" in domain:
         return onedrive(link)
-    elif "gofile.io" in domain:
-        return gofile(link)
     elif "pixeldrain.com" in domain:
         return pixeldrain(link)
     elif "bunkr" in domain:
@@ -191,8 +189,9 @@ def direct_link_generator(link):
         return krakenfiles(link)
     elif "upload.ee" in domain:
         return uploadee(link)
-    elif ".io" in domain:
-        return (link)
+    elif "gofile.io" in domain:
+        return gofile(link, auth)
+        return gofile(link, None)
     elif "send.cm" in domain:
         return send_cm(link)
     elif "tmpsend.com" in domain:
@@ -701,12 +700,31 @@ def onedrive(link):
 
 def pixeldrain(url):
     try:
-        url = url.rstrip("/")
-        code = url.split("/")[-1].split("?", 1)[0]
-        response = get(f"https://{url.split('/')[2]}/api/file/", allow_redirects=True)
-        return response.url + code
-    except Exception as e:
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/")
+        parts = [part for part in path.split("/") if part]
+        if not parts:
+            raise DirectDownloadLinkException("ERROR: Direct link not found")
+
+        resource = parts[-2] if len(parts) >= 2 else ""
+        code = parts[-1]
+
+        if parts[0] == "api" and len(parts) >= 3:
+            api_resource = parts[1]
+            if api_resource == "file":
+                return f"https://pixeldrain.com/api/file/{code}?download"
+            if api_resource == "list":
+                return f"https://pixeldrain.com/api/list/{code}/zip?download"
+
+        if resource in {"u", "file"}:
+            return f"https://pixeldrain.com/api/file/{code}?download"
+        if resource in {"l", "list"}:
+            return f"https://pixeldrain.com/api/list/{code}/zip?download"
         raise DirectDownloadLinkException("ERROR: Direct link not found")
+    except DirectDownloadLinkException:
+        raise
+    except Exception as e:
+        raise DirectDownloadLinkException("ERROR: Direct link not found") from e
 
 def bunkr(url):
     root_dl = "https://get.bunkrr.su"
@@ -1305,70 +1323,46 @@ def linkBox(url: str):
     return details
 
 
-def gofile(url):
+def gofile(url, auth):
     try:
-        if "::" in url:
-            _password = url.split("::")[-1]
-            _password = sha256(_password.encode("utf-8")).hexdigest()
-            url = url.split("::")[-2]
-        else:
-            _password = ""
+        _id = url.split('/')[-1]
+        worker_base_url = "https://gofile.moron-bots.workers.dev"
+        gofile_url = f"{worker_base_url}{_id}"
+        return gofile_url
+    except Exception as e:
+        raise e
+
+    '''    
+    try:
+        _password = sha256(auth[1].encode("utf-8")).hexdigest() if auth else ""
         _id = url.split("/")[-1]
     except Exception as e:
         raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}")
 
     def __get_token(session):
-        global gofile_token_cache
         headers = {
             "User-Agent": user_agent,
             "Accept-Encoding": "gzip, deflate, br",
             "Accept": "*/*",
             "Connection": "keep-alive",
         }
-        # Try to use cached token first
-        if gofile_token_cache:
-            # Validate cached token by making a test request
-            try:
-                test_headers = {
-                    "User-Agent": user_agent,
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Accept": "*/*",
-                    "Connection": "keep-alive",
-                    "Authorization": "Bearer" + " " + gofile_token_cache,
-                }
-                test_res = session.get(
-                    "https://api.gofile.io/accounts/website",
-                    headers=test_headers,
-                ).json()
-                if test_res.get("status") == "ok":
-                    return gofile_token_cache
-            except Exception:
-                pass  # Token invalid, will create new one
-        
-        # Create new account if no valid cached token
         __url = "https://api.gofile.io/accounts"
         try:
             __res = session.post(__url, headers=headers).json()
             if __res["status"] != "ok":
                 raise DirectDownloadLinkException("ERROR: Failed to get token.")
-            gofile_token_cache = __res["data"]["token"]
-            return gofile_token_cache
+            return __res["data"]["token"]
         except Exception as e:
             raise e
 
-    def __fetch_links(session, _id, folderPath="", retry=True):
-        _url = f"https://api.gofile.io/contents/{_id}?cache=true"
-        time_slot = int(time()) // 14400
-        raw = f"{user_agent}::en-US::{token}::{time_slot}::5d4f7g8sd45fsd"
-        wt = sha256(raw.encode()).hexdigest()
+    def __fetch_links(session, _id, folderPath=""):
+        _url = f"https://api.gofile.io/contents/{_id}?wt=4fd6sg89d7s6&cache=true"
         headers = {
             "User-Agent": user_agent,
             "Accept-Encoding": "gzip, deflate, br",
             "Accept": "*/*",
             "Connection": "keep-alive",
             "Authorization": "Bearer" + " " + token,
-            "X-Website-Token": wt,
-            "X-BL": "en-US"
         }
         if _password:
             _url += f"&password={_password}"
@@ -1376,26 +1370,6 @@ def gofile(url):
             _json = session.get(_url, headers=headers).json()
         except Exception as e:
             raise DirectDownloadLinkException(f"ERROR: {e.__class__.__name__}")
-        
-        # Handle token/auth errors - clear cache and retry once
-        if _json.get("status") in ["error-unauth", "error-forbidden", "error-tokenInvalid"]:
-            global gofile_token_cache
-            gofile_token_cache = None  # Clear invalid token
-            if retry:
-                # Get new token and retry
-                try:
-                    new_token = __get_token(session)
-                    # Update headers with new token
-                    headers["Authorization"] = "Bearer" + " " + new_token
-                    _json = session.get(_url, headers=headers).json()
-                    # Update details header with new token for return value
-                    nonlocal details
-                    details["header"] = f"Cookie: accountToken={new_token}"
-                except Exception:
-                    raise DirectDownloadLinkException("ERROR: GoFile token revoked and failed to create new token.")
-            else:
-                raise DirectDownloadLinkException("ERROR: GoFile token revoked.")
-        
         if _json["status"] in "error-passwordRequired":
             raise DirectDownloadLinkException(
                 f"ERROR:\n{PASSWORD_ERROR_MESSAGE.format(url)}"
@@ -1420,15 +1394,15 @@ def gofile(url):
                 if not content["public"]:
                     continue
                 if not folderPath:
-                    newFolderPath = ospath.join(details["title"], content["name"])
+                    newFolderPath = path.join(details["title"], content["name"])
                 else:
-                    newFolderPath = ospath.join(folderPath, content["name"])
-                __fetch_links(session, content["id"], newFolderPath, retry=False)
+                    newFolderPath = path.join(folderPath, content["name"])
+                __fetch_links(session, content["id"], newFolderPath)
             else:
                 if not folderPath:
                     folderPath = details["title"]
                 item = {
-                    "path": ospath.join(folderPath),
+                    "path": path.join(folderPath),
                     "filename": content["name"],
                     "url": content["link"],
                 }
@@ -1454,6 +1428,7 @@ def gofile(url):
     if len(details["contents"]) == 1:
         return (details["contents"][0]["url"], details["header"])
     return details
+    '''
 
 
 def mediafireFolder(url):
