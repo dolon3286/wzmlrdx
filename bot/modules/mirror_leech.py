@@ -233,6 +233,7 @@ class Mirror(TaskListener):
         self.mkv_subtitle = args["-mkvsub"]
         if "-mkvsub" in input_list and not self.mkv_subtitle:
             reply = self.message.reply_to_message
+            cmd_token = input_list[0].split("@")[0]
             if reply and getattr(reply, "document", None):
                 try:
                     t_file = await self.client.get_messages(
@@ -247,7 +248,10 @@ class Mirror(TaskListener):
             if not self.mkv_subtitle:
                 await send_message(
                     self.message,
-                    "Reply to a subtitle document and use: /mirror <video_link> -mkvsub",
+                    (
+                        "Please upload subtitle file first, then reply to that subtitle "
+                        f"with:\n<code>{cmd_token} {args['link']} -mkvsub</code>"
+                    ),
                 )
                 return
 

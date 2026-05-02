@@ -262,7 +262,7 @@ Examples: ["-i mltb.mkv -c copy -c:s srt mltb.mkv", "-i mltb.video -c copy -c:s 
 <b>Bot Command Examples:</b>
 • <code>/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]</code>
 • <code>/mirror {folder_link} -mkv ["mkvextract tracks mltb.video 2:mltb.srt"]</code>
-• <code>(Reply to subtitle file) /mirror {video_link} -mkvsub</code>
+• <code>(Reply to subtitle file) /mirror{suffix} {video_link} -mkvsub</code> (suffix example: /mirror8 or /m8)
 Here I will explain how to use mltb.* which is reference to files you want to work on.
 1. First cmd: the input is mltb.mkv so this cmd will work only on mkv videos and the output is mltb.mkv also so all outputs is mkv. -del will delete the original media after complete run of the cmd.
 2. Second cmd: the input is mltb.video so this cmd will work on all videos and the output is only mltb so the extenstion is same as input files.
