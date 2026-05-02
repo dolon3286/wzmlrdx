@@ -236,10 +236,7 @@ class Mirror(TaskListener):
             cmd_token = input_list[0].split("@")[0]
             if reply and getattr(reply, "document", None):
                 try:
-                    t_file = await self.client.get_messages(
-                        chat_id=reply.chat.id, message_ids=reply.id
-                    )
-                    tg_file = await self.client.get_file(t_file.document.file_id)
+                    tg_file = await self.client.get_file(reply.document.file_id)
                     self.mkv_subtitle = (
                         f"https://api.telegram.org/file/bot{Config.BOT_TOKEN}/{tg_file.file_path}"
                     )
