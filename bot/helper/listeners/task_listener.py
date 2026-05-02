@@ -231,6 +231,15 @@ class TaskListener(TaskConfig):
             self.clear()
             await remove_excluded_files(up_dir, self.excluded_extensions)
 
+        if self.mkvtoolnix_cmds or self.mkv_subtitle:
+            up_path = await self.proceed_mkvtoolnix(
+                up_path,
+                gid,
+            )
+            if isinstance(up_path, str):
+                LOGGER.error(up_path)
+                return await self.on_upload_error(up_path)
+
         if self.ffmpeg_cmds:
             up_path = await self.proceed_ffmpeg(
                 up_path,

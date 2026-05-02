@@ -240,11 +240,29 @@ leech_as = """<b>Leech as</b>: -doc -med
 /cmd link -med (Leech as media)"""
 
 ffmpeg_cmds = """<b>FFmpeg Commands</b>: -ff
+<b>MKVToolNix Commands</b>: -mkv
+<b>Quick subtitle merge</b>: -mkvsub (reply to subtitle document)
 list of lists of ffmpeg commands. You can set multiple ffmpeg commands for all files before upload. Don't write ffmpeg at beginning, start directly with the arguments.
 Notes:
 1. Add <code>-del</code> to the list(s) which you want from the bot to delete the original files after command run complete!
-3. To execute one of pre-added lists in bot like: ({"subtitle": ["-i mltb.mkv -c copy -c:s srt mltb.mkv"]}), you must use -ff subtitle (list key)
-Examples: ["-i mltb.mkv -c copy -c:s srt mltb.mkv", "-i mltb.video -c copy -c:s srt mltb", "-i mltb.m4a -c:a libmp3lame -q:a 2 mltb.mp3", "-i mltb.audio -c:a libmp3lame -q:a 2 mltb.mp3", "-i mltb -map 0:a -c copy mltb.mka -map 0:s -c copy mltb.srt"]
+3. To execute one of pre-added lists in bot like: ({"subtitle": ["-i mltb.mkv -c copy -c:s srt mltb.mkv"]}), you must use -ff subtitle (list key). For MKVToolNix commands, pass a list like -mkv ["mkvmerge ..."].
+Examples: ["-i mltb.mkv -c copy -c:s srt mltb.mkv", "-i mltb.video -c copy -c:s srt mltb", "-i mltb.m4a -c:a libmp3lame -q:a 2 mltb.mp3", "-i mltb.audio -c:a libmp3lame -q:a 2 mltb.mp3", "-i mltb -map 0:a -c copy mltb.mka -map 0:s -c copy mltb.srt", "-i mltb.video -i subtitle.srt -map 0 -map 1 -c copy -c:s srt -metadata:s:s:0 language=eng mltb.mkv"]
+
+<b>Subtitle Quick Recipes (MKVToolNix):</b>
+• <b>Add subtitle to MKV:</b> <code>mkvmerge -o output.mkv input.mkv --language 0:eng subtitle.srt</code>
+• <b>Extract subtitle from MKV:</b> <code>mkvextract tracks input.mkv 2:subtitle.srt</code> (replace <code>2</code> with subtitle track id)
+• <b>List track ids first:</b> <code>mkvmerge -i input.mkv</code>
+• <b>Download subtitles from link (yt-dlp):</b> use <code>-opt {"writesubtitles": true, "writeautomaticsub": true, "subtitlesformat": "srt"}</code>
+
+<b>How to run batch from bot shell:</b>
+• <b>Folder / many videos extraction:</b> <code>for f in *.mkv; do mkvextract tracks "$f" 2:"${f%.mkv}.srt"; done</code>
+• <b>Single video add subtitle:</b> <code>mkvmerge -o "${name%.mkv}.subbed.mkv" "$name" --language 0:eng subtitle.srt</code>
+• <b>Note:</b> MKVToolNix commands are for MKV containers. For MP4/other containers, remux to MKV first.
+
+<b>Bot Command Examples:</b>
+• <code>/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]</code>
+• <code>/mirror {folder_link} -mkv ["mkvextract tracks mltb.video 2:mltb.srt"]</code>
+• <code>(Reply to subtitle file) /mirror {video_link} -mkvsub</code>
 Here I will explain how to use mltb.* which is reference to files you want to work on.
 1. First cmd: the input is mltb.mkv so this cmd will work only on mkv videos and the output is mltb.mkv also so all outputs is mkv. -del will delete the original media after complete run of the cmd.
 2. Second cmd: the input is mltb.video so this cmd will work on all videos and the output is only mltb so the extenstion is same as input files.

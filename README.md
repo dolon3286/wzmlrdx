@@ -176,6 +176,64 @@ sudo docker image prune -a
 
 </details>
 
+## Subtitle Guide (MKVToolNix)
+
+Use these commands when you want to extract or merge subtitles in MKV files.
+
+### 1) List subtitle track IDs
+```bash
+mkvmerge -i input.mkv
+```
+
+### 2) Extract subtitle from one video
+```bash
+mkvextract tracks input.mkv 2:subtitle.srt
+```
+Replace `2` with the correct subtitle track ID from `mkvmerge -i` output.
+
+### 3) Extract subtitles from a folder (many videos)
+```bash
+for f in *.mkv; do
+  mkvextract tracks "$f" 2:"${f%.mkv}.srt"
+done
+```
+
+### 4) Merge/Add external subtitle into a video
+```bash
+mkvmerge -o output.mkv input.mkv --language 0:eng subtitle.srt
+```
+
+### 5) Download subtitles from links (yt-dlp option)
+In bot command `-opt`:
+```json
+{"writesubtitles": true, "writeautomaticsub": true, "subtitlesformat": "srt"}
+```
+
+
+### 6) Bot command examples (mirror -> process -> upload)
+Use `-mkv` to run MKVToolNix inside the mirror pipeline before upload.
+
+```bash
+/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng https://example.com/subtitle.srt"]
+```
+
+```bash
+/mirror {folder_link} -mkv ["mkvextract tracks mltb.video 2:mltb.srt"]
+```
+
+```bash
+/mirror {video_link} -mkv ["mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng /usr/src/app/subs/movie.srt"]
+```
+
+```bash
+(Reply to subtitle file) /mirror {video_link} -mkvsub
+```
+(quick mode: auto-runs `mkvmerge` to produce `mltb.subbed.mkv` before upload; reply to subtitle document so bot grabs it automatically)
+
+> Note: MKVToolNix works on MKV containers. For MP4/other containers, remux to MKV first.
+
+------
+
 ## 🏅 **Bot Authors**
 <details>
     <summary><b>Click Here For Description</b></summary>

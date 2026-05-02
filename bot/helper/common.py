@@ -135,6 +135,8 @@ class TaskConfig:
         self.user_trans = False
         self.progress = True
         self.ffmpeg_cmds = None
+        self.mkvtoolnix_cmds = None
+        self.mkv_subtitle = ""
         self.metadata_title = None
         self.chat_thread_id = None
         self.subproc = None
@@ -864,6 +866,63 @@ class TaskConfig:
         finally:
             if checked:
                 cpu_eater_lock.release()
+        return dl_path
+
+    async def proceed_mkvtoolnix(self, dl_path, gid):
+        checked = False
+        if (not self.mkvtoolnix_cmds) and self.mkv_subtitle:
+            self.mkvtoolnix_cmds = {
+                f"mkvmerge -o mltb.subbed.mkv mltb.video --language 0:eng {self.mkv_subtitle}"
+            }
+        cmds = [
+            [part.strip() for part in split(item) if part.strip()]
+            for item in self.mkvtoolnix_cmds
+        ]
+        try:
+            for mkv_cmd in cmds:
+                self.proceed_count = 0
+                if not mkv_cmd:
+                    continue
+                if await aiopath.isfile(dl_path):
+                    checked = True
+                    file_path = dl_path
+                    if not await is_video(file_path):
+                        continue
+                    base_name = ospath.splitext(ospath.basename(file_path))[0]
+                    var_cmd = [
+                        c.replace("mltb.video", file_path).replace("mltb", base_name)
+                        for c in mkv_cmd
+                    ]
+                    LOGGER.info(f"Running mkvtoolnix cmd for: {file_path}")
+                    cmd_exec = await create_subprocess_exec(
+                        *var_cmd, stdout=PIPE, stderr=PIPE
+                    )
+                    _, stderr = await cmd_exec.communicate()
+                    if cmd_exec.returncode != 0:
+                        return f"MKVToolNix error: {stderr.decode().strip()}"
+                else:
+                    checked = True
+                    for dirpath, _, files in await sync_to_async(walk, dl_path):
+                        for file in files:
+                            f_path = ospath.join(dirpath, file)
+                            if not await is_video(f_path):
+                                continue
+                            base_name = ospath.splitext(ospath.basename(f_path))[0]
+                            var_cmd = [
+                                c.replace("mltb.video", f_path).replace("mltb", base_name)
+                                for c in mkv_cmd
+                            ]
+                            LOGGER.info(f"Running mkvtoolnix cmd for: {f_path}")
+                            cmd_exec = await create_subprocess_exec(
+                                *var_cmd, stdout=PIPE, stderr=PIPE
+                            )
+                            _, stderr = await cmd_exec.communicate()
+                            if cmd_exec.returncode != 0:
+                                return f"MKVToolNix error: {stderr.decode().strip()}"
+            if not checked:
+                return "No video files found for MKVToolNix commands."
+        except Exception as e:
+            return str(e)
         return dl_path
 
     async def substitute(self, dl_path):

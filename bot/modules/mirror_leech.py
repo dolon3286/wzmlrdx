@@ -131,6 +131,8 @@ class Mirror(TaskListener):
             "-ns": "",
             "-tl": "",
             "-ff": set(),
+            "-mkv": set(),
+            "-mkvsub": "",
         }
 
         arg_parser(input_list[1:], args)
@@ -219,6 +221,35 @@ class Mirror(TaskListener):
         except Exception as e:
             self.ffmpeg_cmds = None
             LOGGER.error(e)
+        try:
+            if args["-mkv"]:
+                if isinstance(args["-mkv"], set):
+                    self.mkvtoolnix_cmds = args["-mkv"]
+                else:
+                    self.mkvtoolnix_cmds = eval(args["-mkv"])
+        except Exception as e:
+            self.mkvtoolnix_cmds = None
+            LOGGER.error(e)
+        self.mkv_subtitle = args["-mkvsub"]
+        if "-mkvsub" in input_list and not self.mkv_subtitle:
+            reply = self.message.reply_to_message
+            if reply and getattr(reply, "document", None):
+                try:
+                    t_file = await self.client.get_messages(
+                        chat_id=reply.chat.id, message_ids=reply.id
+                    )
+                    tg_file = await self.client.get_file(t_file.document.file_id)
+                    self.mkv_subtitle = (
+                        f"https://api.telegram.org/file/bot{Config.BOT_TOKEN}/{tg_file.file_path}"
+                    )
+                except Exception as e:
+                    LOGGER.error(e)
+            if not self.mkv_subtitle:
+                await send_message(
+                    self.message,
+                    "Reply to a subtitle document and use: /mirror <video_link> -mkvsub",
+                )
+                return
 
         if not isinstance(self.seed, bool):
             dargs = self.seed.split(":")
