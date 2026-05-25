@@ -858,6 +858,9 @@ async def get_user_settings(from_user, stype="main"):
         buttons.data_button(
             "YT Cookie File", f"userset {user_id} menu USER_COOKIE_FILE"
         )
+        buttons.data_button(
+            "Generate Own TG Session", f"userset {user_id} gen_tg_session"
+        )
 
         buttons.data_button("Back", f"userset {user_id} back", "footer")
         buttons.data_button("Close", f"userset {user_id} close", "footer")
@@ -870,7 +873,8 @@ async def get_user_settings(from_user, stype="main"):
 ┠ <b>Excluded Extensions</b> → <code>{ex_ex}</code>
 ┠ <b>Upload Paths</b> → <b>{upload_paths}</b>
 ┠ <b>YT-DLP Options</b> → <code>{ytopt}</code>
-┖ <b>YT User Cookie File</b> → <b>{user_cookie_msg}</b>"""
+┠ <b>YT User Cookie File</b> → <b>{user_cookie_msg}</b>
+┖ <b>Own TG Session</b> → <b>Use Generate Own TG Session button</b>"""
     elif stype == "yttools":
         buttons.data_button("YT Description", f"userset {user_id} menu YT_DESP")
         yt_desp_val = user_dict.get(
@@ -1426,6 +1430,19 @@ async def edit_user_settings(client, query):
     elif data[2] == "view":
         await query.answer()
         await send_file(message, thumb_path, name)
+    elif data[2] == "gen_tg_session":
+        await query.answer()
+        tg_script = f"{getcwd()}/gen_scripts/gen_pyro_session.py"
+        gen_msg = (
+            "<b>Generate your own Telegram user session:</b>\n"
+            "1) Download this script.\n"
+            "2) Run it locally with Python.\n"
+            "3) Complete OTP login flow.\n"
+            "4) Send generated session string to owner to add in bot config.\n\n"
+            "<i>For security, never share your session string publicly.</i>"
+        )
+        await send_file(message, tg_script, "tg_session_generator.py")
+        await send_message(message, gen_msg)
     elif data[2] in ["gd", "rc"]:
         await query.answer()
         du = "rc" if data[2] == "gd" else "gd"
