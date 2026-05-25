@@ -92,6 +92,26 @@ if UPSTREAM_REPO:
     if path.exists(".git"):
         srun(["rm", "-rf", ".git"])
 
+    branch_check = srun(
+        [f"git ls-remote --heads {UPSTREAM_REPO} {UPSTREAM_BRANCH}"],
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    if branch_check.returncode == 0 and branch_check.stdout.strip():
+        target_branch = UPSTREAM_BRANCH
+    else:
+        log_error(
+            f"UPSTREAM_BRANCH '{UPSTREAM_BRANCH}' not found in remote. "
+            "Falling back to remote default branch (HEAD)."
+        )
+        target_branch = ""
+
+    if target_branch:
+        reset_cmd = f"git reset --hard origin/{target_branch} -q"
+    else:
+        reset_cmd = "git reset --hard origin/HEAD -q"
+
     update = srun(
         [
             f"git init -q \
@@ -101,7 +121,7 @@ if UPSTREAM_REPO:
                      && git commit -sm update -q \
                      && git remote add origin {UPSTREAM_REPO} \
                      && git fetch origin -q \
-                     && git reset --hard origin/{UPSTREAM_BRANCH} -q"
+                     && {reset_cmd}"
         ],
         shell=True,
     )
@@ -112,7 +132,9 @@ if UPSTREAM_REPO:
         log_info("Successfully updated with Latest Updates !")
     else:
         log_error("Something went Wrong ! Recheck your details or Ask Support !")
-    log_info(f"UPSTREAM_REPO: {UPSTREAM_REPO} | UPSTREAM_BRANCH: {UPSTREAM_BRANCH}")
+    log_info(
+        f"UPSTREAM_REPO: {UPSTREAM_REPO} | UPSTREAM_BRANCH: {UPSTREAM_BRANCH}"
+    )
 
 
 UPDATE_PKGS = config_file.get("UPDATE_PKGS", "True")
