@@ -5,6 +5,9 @@ install()
 
 from asyncio import sleep
 from urllib.parse import urlparse
+from base64 import urlsafe_b64decode
+from hashlib import sha256
+from hmac import compare_digest, new as hmac_new
 from contextlib import asynccontextmanager
 from logging import INFO, WARNING, FileHandler, StreamHandler, basicConfig, getLogger
 
@@ -12,6 +15,7 @@ from aioaria2 import Aria2HttpClient
 from aiohttp.client_exceptions import ClientError
 from aioqbt.client import create_client
 from fastapi import FastAPI, Request, HTTPException
+from fastapi import Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sabnzbdapi import SabnzbdClient
@@ -22,6 +26,14 @@ from aioqbt.exc import AQError
 
 from web.nodes import extract_file_ids, make_tree
 from aiohttp import ClientSession
+from pyrogram import Client as PyroClient
+from pyrogram.errors import SessionPasswordNeeded
+from secrets import token_urlsafe
+from time import time
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.server_api import ServerApi
+
+from bot.core.config_manager import Config
 
 getLogger("httpx").setLevel(WARNING)
 getLogger("aiohttp").setLevel(WARNING)
@@ -62,6 +74,22 @@ basicConfig(
 )
 
 LOGGER = getLogger(__name__)
+tg_session_jobs = {}
+
+
+def parse_tg_session_token(token: str):
+    try:
+        raw = urlsafe_b64decode(token.encode()).decode()
+        user_id, exp, sig = raw.split(":", 2)
+        payload = f"{user_id}:{exp}"
+        expected = hmac_new(Config.BOT_TOKEN.encode(), payload.encode(), sha256).hexdigest()
+        if not compare_digest(sig, expected):
+            return None
+        if int(exp) < int(time()):
+            return None
+        return int(user_id)
+    except Exception:
+        return None
 
 
 async def re_verify(paused, resumed, hash_id):
@@ -257,6 +285,134 @@ async def set_aria2(gid, selected_files):
 @app.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
     return templates.TemplateResponse(request=request, name="landing.html")
+
+
+@app.get("/app/tg-session", response_class=HTMLResponse)
+async def tg_session_page(token: str = ""):
+    user_id = parse_tg_session_token(token) if token else None
+    if not user_id:
+        return HTMLResponse("<h3>Invalid or expired token.</h3>", status_code=400)
+    tg_session_jobs[token] = {"user_id": user_id}
+    return HTMLResponse(
+        f"""
+<html><body>
+<h3>Generate Telegram Session</h3>
+<form method="post" action="/app/tg-session/start">
+<input type="hidden" name="token" value="{token}">
+<p>API ID: <input name="api_id" required></p>
+<p>API HASH: <input name="api_hash" required></p>
+<p>PHONE: <input name="phone" required placeholder="+1234567890"></p>
+<button type="submit">Send OTP</button>
+</form>
+</body></html>
+"""
+    )
+
+
+@app.post("/app/tg-session/start", response_class=HTMLResponse)
+async def tg_session_start(
+    token: str = Form(...), api_id: str = Form(...), api_hash: str = Form(...), phone: str = Form(...)
+):
+    if token not in tg_session_jobs:
+        return HTMLResponse("<h3>Invalid or expired token.</h3>", status_code=400)
+    if not api_id.isdigit():
+        return HTMLResponse("<h3>API ID must be numeric.</h3>", status_code=400)
+    job = tg_session_jobs[token]
+    client = PyroClient(
+        name=f"WZ-Web-{job['user_id']}",
+        api_id=int(api_id),
+        api_hash=api_hash,
+        phone_number=phone,
+        in_memory=True,
+        no_updates=True,
+    )
+    try:
+        await client.connect()
+        sent = await client.send_code(phone)
+        job.update(
+            {
+                "client": client,
+                "phone": phone,
+                "phone_code_hash": sent.phone_code_hash,
+            }
+        )
+        return HTMLResponse(
+            f"""
+<html><body>
+<h3>Enter OTP Code</h3>
+<form method="post" action="/app/tg-session/verify">
+<input type="hidden" name="token" value="{token}">
+<p>OTP: <input name="otp" required placeholder="12345"></p>
+<button type="submit">Verify</button>
+</form>
+</body></html>
+"""
+        )
+    except Exception as e:
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+        return HTMLResponse(f"<h3>Failed to send OTP: {e}</h3>", status_code=400)
+
+
+@app.post("/app/tg-session/verify", response_class=HTMLResponse)
+async def tg_session_verify(token: str = Form(...), otp: str = Form(...), password: str = Form(None)):
+    if token not in tg_session_jobs:
+        return HTMLResponse("<h3>Invalid or expired token.</h3>", status_code=400)
+    job = tg_session_jobs[token]
+    client = job.get("client")
+    if not client:
+        return HTMLResponse("<h3>Session not initialized.</h3>", status_code=400)
+    try:
+        try:
+            await client.sign_in(job["phone"], job["phone_code_hash"], otp.replace(" ", ""))
+        except SessionPasswordNeeded:
+            if not password:
+                return HTMLResponse(
+                    f"""
+<html><body>
+<h3>2FA Password Required</h3>
+<form method="post" action="/app/tg-session/verify">
+<input type="hidden" name="token" value="{token}">
+<input type="hidden" name="otp" value="{otp}">
+<p>Password: <input name="password" required type="password"></p>
+<button type="submit">Submit Password</button>
+</form>
+</body></html>
+"""
+                )
+            await client.check_password(password)
+        session_string = await client.export_session_string()
+        user_id = job["user_id"]
+        db_id = Config.BOT_TOKEN.split(":", 1)[0]
+        conn = AsyncIOMotorClient(Config.DATABASE_URL, server_api=ServerApi("1"))
+        try:
+            db = conn.wzmlx
+            await db.users[db_id].update_one(
+                {"_id": user_id},
+                {
+                    "$set": {
+                        "OWN_TG_SESSION": session_string,
+                        "USE_OWN_TG_SESSION": True,
+                        "USER_TRANSMISSION": True,
+                    }
+                },
+                upsert=True,
+            )
+        finally:
+            conn.close()
+        return HTMLResponse(
+            "<h3>Session generated and auto-saved successfully.</h3>"
+        )
+    except Exception as e:
+        return HTMLResponse(f"<h3>Failed to generate session: {e}</h3>", status_code=400)
+    finally:
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+        tg_session_jobs.pop(token, None)
 
 
 def rewrite_location(location: str, proxy_prefix: str) -> str:

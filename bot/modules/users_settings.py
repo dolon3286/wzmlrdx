@@ -1,10 +1,13 @@
-from asyncio import sleep
+from asyncio import Future, sleep, wait_for
 from functools import partial
 from html import escape
 from io import BytesIO
 from os import getcwd
 from re import sub
 from time import time
+from base64 import urlsafe_b64encode
+from hashlib import sha256
+from hmac import new as hmac_new
 
 from aiofiles.os import makedirs, remove
 from aiofiles.os import path as aiopath
@@ -33,6 +36,14 @@ from ..helper.telegram_helper.message_utils import (
 )
 
 handler_dict = {}
+
+
+def make_tg_session_token(user_id):
+    exp = int(time()) + 900
+    payload = f"{user_id}:{exp}"
+    secret = Config.BOT_TOKEN.encode()
+    sign = hmac_new(secret, payload.encode(), sha256).hexdigest()
+    return urlsafe_b64encode(f"{payload}:{sign}".encode()).decode()
 
 leech_options = [
     "THUMBNAIL",
@@ -477,6 +488,8 @@ async def get_user_settings(from_user, stype="main"):
             )
         else:
             leech_method = "bot"
+        if user_dict.get("USE_OWN_TG_SESSION", False):
+            leech_method = "own-user"
 
         if (
             TgClient.IS_PREMIUM_USER
@@ -858,6 +871,16 @@ async def get_user_settings(from_user, stype="main"):
         buttons.data_button(
             "YT Cookie File", f"userset {user_id} menu USER_COOKIE_FILE"
         )
+        buttons.data_button(
+            "Generate Own TG Session", f"userset {user_id} gen_tg_session"
+        )
+        own_session_exists = bool(user_dict.get("OWN_TG_SESSION"))
+        own_session_mode = user_dict.get("USE_OWN_TG_SESSION", False) and own_session_exists
+        if own_session_exists:
+            buttons.data_button(
+                f"{'Disable' if own_session_mode else 'Enable'} Own TG Session for Leech",
+                f"userset {user_id} tog USE_OWN_TG_SESSION {'f' if own_session_mode else 't'}",
+            )
 
         buttons.data_button("Back", f"userset {user_id} back", "footer")
         buttons.data_button("Close", f"userset {user_id} close", "footer")
@@ -870,7 +893,8 @@ async def get_user_settings(from_user, stype="main"):
 ┠ <b>Excluded Extensions</b> → <code>{ex_ex}</code>
 ┠ <b>Upload Paths</b> → <b>{upload_paths}</b>
 ┠ <b>YT-DLP Options</b> → <code>{ytopt}</code>
-┖ <b>YT User Cookie File</b> → <b>{user_cookie_msg}</b>"""
+┠ <b>YT User Cookie File</b> → <b>{user_cookie_msg}</b>
+┖ <b>Own TG Session</b> → <b>{"Enabled" if own_session_mode else ("Saved" if own_session_exists else "Not Set")}</b>"""
     elif stype == "yttools":
         buttons.data_button("YT Description", f"userset {user_id} menu YT_DESP")
         yt_desp_val = user_dict.get(
@@ -1240,6 +1264,29 @@ async def event_handler(client, query, pfunc, rfunc, photo=False, document=False
     client.remove_handler(*handler)
 
 
+async def wait_user_text(client, query, timeout=120):
+    user_id = query.from_user.id
+    chat_id = query.message.chat.id
+    future = Future()
+
+    async def capture(_, event):
+        if (
+            event.from_user
+            and event.from_user.id == user_id
+            and event.chat.id == chat_id
+            and event.text
+        ):
+            if not future.done():
+                future.set_result(event)
+
+    handler = client.add_handler(MessageHandler(capture), group=-1)
+    try:
+        msg = await wait_for(future, timeout=timeout)
+        return msg
+    finally:
+        client.remove_handler(*handler)
+
+
 @new_task
 async def edit_user_settings(client, query):
     from_user = query.from_user
@@ -1326,6 +1373,8 @@ async def edit_user_settings(client, query):
             back_to = "gdrive"
         elif data[3] in ["USER_TOKENS", "USE_DEFAULT_COOKIE"]:
             back_to = "general"
+        elif data[3] == "USE_OWN_TG_SESSION":
+            back_to = "advanced"
         else:
             back_to = "leech"
         await update_user_settings(query, stype=back_to)
@@ -1426,6 +1475,24 @@ async def edit_user_settings(client, query):
     elif data[2] == "view":
         await query.answer()
         await send_file(message, thumb_path, name)
+    elif data[2] == "gen_tg_session":
+        await query.answer()
+        if not Config.BASE_URL:
+            await send_message(message, "BASE_URL not configured, cannot open browser flow.")
+            return
+        buttons = ButtonMaker()
+        token = make_tg_session_token(user_id)
+        buttons.url_button(
+            "Open TG Session Generator",
+            f"{Config.BASE_URL}/app/tg-session?token={token}",
+        )
+        buttons.data_button("Back", f"userset {user_id} advanced", "footer")
+        await send_message(
+            message,
+            "<b>Open browser generator and complete login there.</b>\n"
+            "After you get session string, set it in your advanced settings as own session.",
+            buttons.build_menu(1),
+        )
     elif data[2] in ["gd", "rc"]:
         await query.answer()
         du = "rc" if data[2] == "gd" else "gd"
