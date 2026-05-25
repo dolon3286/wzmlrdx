@@ -1,4 +1,4 @@
-from asyncio import sleep
+from asyncio import Future, sleep, wait_for
 from functools import partial
 from html import escape
 from io import BytesIO
@@ -11,6 +11,7 @@ from aiofiles.os import path as aiopath
 from langcodes import Language
 from pyrogram.filters import create
 from pyrogram.handlers import MessageHandler
+from pyrogram.errors import SessionPasswordNeeded
 
 from bot.helper.ext_utils.status_utils import get_readable_file_size
 
@@ -477,6 +478,8 @@ async def get_user_settings(from_user, stype="main"):
             )
         else:
             leech_method = "bot"
+        if user_dict.get("USE_OWN_TG_SESSION", False):
+            leech_method = "own-user"
 
         if (
             TgClient.IS_PREMIUM_USER
@@ -861,6 +864,13 @@ async def get_user_settings(from_user, stype="main"):
         buttons.data_button(
             "Generate Own TG Session", f"userset {user_id} gen_tg_session"
         )
+        own_session_exists = bool(user_dict.get("OWN_TG_SESSION"))
+        own_session_mode = user_dict.get("USE_OWN_TG_SESSION", False) and own_session_exists
+        if own_session_exists:
+            buttons.data_button(
+                f"{'Disable' if own_session_mode else 'Enable'} Own TG Session for Leech",
+                f"userset {user_id} tog USE_OWN_TG_SESSION {'f' if own_session_mode else 't'}",
+            )
 
         buttons.data_button("Back", f"userset {user_id} back", "footer")
         buttons.data_button("Close", f"userset {user_id} close", "footer")
@@ -874,7 +884,7 @@ async def get_user_settings(from_user, stype="main"):
 ┠ <b>Upload Paths</b> → <b>{upload_paths}</b>
 ┠ <b>YT-DLP Options</b> → <code>{ytopt}</code>
 ┠ <b>YT User Cookie File</b> → <b>{user_cookie_msg}</b>
-┖ <b>Own TG Session</b> → <b>Use Generate Own TG Session button</b>"""
+┖ <b>Own TG Session</b> → <b>{"Enabled" if own_session_mode else ("Saved" if own_session_exists else "Not Set")}</b>"""
     elif stype == "yttools":
         buttons.data_button("YT Description", f"userset {user_id} menu YT_DESP")
         yt_desp_val = user_dict.get(
@@ -1244,6 +1254,24 @@ async def event_handler(client, query, pfunc, rfunc, photo=False, document=False
     client.remove_handler(*handler)
 
 
+async def wait_user_text(client, query, timeout=120):
+    user_id = query.from_user.id
+    chat_id = query.message.chat.id
+    future = Future()
+
+    async def capture(_, __, event):
+        if event.from_user and event.from_user.id == user_id and event.chat.id == chat_id and event.text:
+            if not future.done():
+                future.set_result(event)
+
+    handler = client.add_handler(MessageHandler(capture), group=-1)
+    try:
+        msg = await wait_for(future, timeout=timeout)
+        return msg
+    finally:
+        client.remove_handler(*handler)
+
+
 @new_task
 async def edit_user_settings(client, query):
     from_user = query.from_user
@@ -1330,6 +1358,8 @@ async def edit_user_settings(client, query):
             back_to = "gdrive"
         elif data[3] in ["USER_TOKENS", "USE_DEFAULT_COOKIE"]:
             back_to = "general"
+        elif data[3] == "USE_OWN_TG_SESSION":
+            back_to = "advanced"
         else:
             back_to = "leech"
         await update_user_settings(query, stype=back_to)
@@ -1432,17 +1462,63 @@ async def edit_user_settings(client, query):
         await send_file(message, thumb_path, name)
     elif data[2] == "gen_tg_session":
         await query.answer()
-        tg_script = f"{getcwd()}/gen_scripts/gen_pyro_session.py"
-        gen_msg = (
-            "<b>Generate your own Telegram user session:</b>\n"
-            "1) Download this script.\n"
-            "2) Run it locally with Python.\n"
-            "3) Complete OTP login flow.\n"
-            "4) Send generated session string to owner to add in bot config.\n\n"
-            "<i>For security, never share your session string publicly.</i>"
+        await send_message(
+            message,
+            "<b>Send your API_ID API_HASH PHONE in one line</b>\n"
+            "<code>123456 0123456789abcdef0123456789abcdef +1234567890</code>\n"
+            "Type <code>cancel</code> to stop.",
         )
-        await send_file(message, tg_script, "tg_session_generator.py")
-        await send_message(message, gen_msg)
+        creds_msg = await wait_user_text(client, query)
+        if creds_msg.text.strip().lower() == "cancel":
+            return await send_message(message, "Session generation cancelled.")
+        parts = creds_msg.text.strip().split(maxsplit=2)
+        if len(parts) != 3 or not parts[0].isdigit():
+            return await send_message(message, "Invalid format. Try again from button.")
+        api_id = int(parts[0])
+        api_hash = parts[1].strip()
+        phone = parts[2].strip()
+        tmp_client = TgClient.wztgClient(
+            name=f"WZ-Own-{user_id}",
+            api_id=api_id,
+            api_hash=api_hash,
+            phone_number=phone,
+            no_updates=True,
+        )
+        try:
+            await tmp_client.connect()
+            sent_code = await tmp_client.send_code(phone)
+            await send_message(
+                message,
+                "Enter the OTP code from Telegram.\n"
+                "Example: <code>1 2 3 4 5</code> or <code>12345</code>",
+            )
+            otp_msg = await wait_user_text(client, query)
+            if otp_msg.text.strip().lower() == "cancel":
+                return await send_message(message, "Session generation cancelled.")
+            code = otp_msg.text.replace(" ", "")
+            try:
+                await tmp_client.sign_in(phone, sent_code.phone_code_hash, code)
+            except SessionPasswordNeeded:
+                await send_message(message, "2FA enabled. Send your password.")
+                pass_msg = await wait_user_text(client, query)
+                if pass_msg.text.strip().lower() == "cancel":
+                    return await send_message(message, "Session generation cancelled.")
+                await tmp_client.check_password(pass_msg.text.strip())
+            session_string = await tmp_client.export_session_string()
+            update_user_ldata(user_id, "OWN_TG_SESSION", session_string)
+            update_user_ldata(user_id, "USE_OWN_TG_SESSION", True)
+            update_user_ldata(user_id, "USER_TRANSMISSION", True)
+            await database.update_user_data(user_id)
+            await send_message(
+                message,
+                "<b>Own TG session generated and saved successfully.</b>\n"
+                "Own session mode is now enabled for leech settings.",
+            )
+            await update_user_settings(query, "advanced")
+        except Exception as e:
+            await send_message(message, f"Failed to generate session: <code>{escape(str(e))}</code>")
+        finally:
+            await tmp_client.disconnect()
     elif data[2] in ["gd", "rc"]:
         await query.answer()
         du = "rc" if data[2] == "gd" else "gd"
