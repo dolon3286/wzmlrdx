@@ -31,6 +31,28 @@ from .tg_client import TgClient
 from .torrent_manager import TorrentManager
 
 
+QBIT_WEB_UI_PASSWORD_KEY = "web_ui_password"
+
+
+def _sanitize_qbit_options(options):
+    if not options:
+        return {}
+    sanitized = dict(options)
+    if QBIT_WEB_UI_PASSWORD_KEY in sanitized:
+        LOGGER.warning(
+            "Skipping qBittorrent WebUI password during startup preference sync."
+        )
+        sanitized.pop(QBIT_WEB_UI_PASSWORD_KEY, None)
+    return sanitized
+
+
+async def _set_qbit_preferences(options):
+    sanitized_options = _sanitize_qbit_options(options)
+    if not sanitized_options:
+        return
+    await TorrentManager.qbittorrent.app.set_preferences(sanitized_options)
+
+
 async def update_qb_options():
     LOGGER.info("Get qBittorrent options from server")
     if not qbit_options:
@@ -45,12 +67,9 @@ async def update_qb_options():
         for k in list(qbit_options.keys()):
             if k.startswith("rss"):
                 del qbit_options[k]
-        qbit_options["web_ui_password"] = "admin1"
-        await TorrentManager.qbittorrent.app.set_preferences(
-            {"web_ui_password": "admin1"}
-        )
+        qbit_options.pop(QBIT_WEB_UI_PASSWORD_KEY, None)
     else:
-        await TorrentManager.qbittorrent.app.set_preferences(qbit_options)
+        await _set_qbit_preferences(qbit_options)
 
 
 async def update_aria2_options():
@@ -344,6 +363,6 @@ async def load_configurations():
         LOGGER.info("Torrents are disabled. Skipping qBittorrent initialization.")
     else:
         try:
-            await TorrentManager.qbittorrent.app.set_preferences(qbit_options)
+            await _set_qbit_preferences(qbit_options)
         except Exception as e:
             LOGGER.error(f"Failed to configure qBittorrent: {e}")
